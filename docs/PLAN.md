@@ -40,7 +40,7 @@ The whole studio has a left-handed mode that mirrors it.
 
 - Built on Material 3 / Material You components, themed with a custom "Silpa" color scheme. The dynamic wallpaper color is not used in the studio, because UI color must stay neutral there. It can be enabled outside the studio.
 - Spacing follows a 4dp/8dp grid. Corner radii are 12dp for cards and 28dp for sheets. Floating panels get a soft elevation shadow.
-- Type is Plus Jakarta Sans for headings and Inter for UI text, in sp units so it scales with the system.
+- Type uses the device's system font (Roboto/Google Sans), so no font is bundled and there is no licensing issue. Sizes are in sp so they scale with the system.
 - Motion lasts 150–250ms with standard easing, and is reduced when the system "remove animations" setting is on.
 - Dark theme is the default. A light theme is available.
 
@@ -91,8 +91,8 @@ The whole studio has a left-handed mode that mirrors it.
 Goal: drop images in and never organize them by hand.
 - **Sources:** share-to-Silpa from any app, the photo picker, the camera, the canvas or a selection ("save to bank"), and the public Gallery (respecting licenses).
 - **Automatic organization, all on-device, so it is private and works offline:**
-  1. **Category classifier** (a small TFLite model plus ML Kit Image Labeling) sorts items into Faces, Eyes, Noses, Mouths, Ears, Hands, Hair, Full characters, Poses, Houses/Buildings, Interiors, Landscapes, Plants, Animals, Vehicles, Props, Textures and Patterns.
-  2. **Face-part extraction:** when a face is detected (ML Kit Face Detection with landmarks and contours), Silpa offers to split it into eye, nose and mouth crops automatically, each filed in its own category.
+  1. **Category classifier** (a small model we train ourselves, running on LiteRT/TensorFlow Lite, Apache-2.0) sorts items into Faces, Eyes, Noses, Mouths, Ears, Hands, Hair, Full characters, Poses, Houses/Buildings, Interiors, Landscapes, Plants, Animals, Vehicles, Props, Textures and Patterns.
+  2. **Face-part extraction:** when a face is detected (MediaPipe Face Landmarker, Apache-2.0), Silpa offers to split it into eye, nose and mouth crops automatically, each filed in its own category.
   3. **Auto-tags:** dominant color palette, style (line art, painted, photo), orientation, and transparency (cut-out versus full image).
   4. **Similarity:** image embeddings drive search such as "show me eyes like this one" and group near-duplicates using a perceptual hash.
   5. **Smart collections** are rule-based, for example "Houses + blue + line art", and update themselves.
@@ -105,7 +105,7 @@ Goal: drop images in and never organize them by hand.
 - Posting from the studio takes one tap. The artist chooses visibility, a license (all rights reserved, CC-BY or CC0) and "allow saving to Image Bank".
 - Profiles, follows, likes, comments, collections.
 - **Required by Google Play's user-generated-content policy:** users accept the terms before posting, in-app **report** for content and users, user **blocking**, ongoing moderation (an automated pre-screen plus a human review queue), and sensitive content hidden by default behind a filter that takes two or more actions to enable, with an age gate.
-- **Backend recommendation:** Firebase (Auth, Firestore, Storage, Cloud Functions, plus Cloud Vision SafeSearch for pre-screening). It is the fastest to ship and scales without a dedicated ops team. Alternative: Supabase if you prefer Postgres and open source.
+- **Backend:** Supabase (Apache-2.0), for authentication, Postgres, storage and edge functions. It can be self-hosted later. The Android client is supabase-kt (MIT). An Apache-licensed open NSFW classifier runs on upload for pre-screening, followed by a human review queue.
 
 ### 3.4 Monetization: Free (with ads) and Pro (no ads)
 - **Recommended:** one Play listing, free with a one-time in-app purchase of "Silpa Pro" through Play Billing. Pro removes ads and unlocks extras such as unlimited layers above 20, the premium brush packs, 8K canvases and cloud backup of the Image Bank. A single listing keeps reviews and installs together and lets users upgrade without reinstalling. The codebase also uses Gradle `free`/`pro` product flavors, so a separate paid "Silpa Pro" listing can be built from the same code if you want one.
@@ -138,6 +138,14 @@ Goal: drop images in and never organize them by hand.
   - CI on GitHub Actions.
 
 ---
+
+## 4a. Licensing policy (owner preference: Apache-2.0 and MIT)
+- **Silpa's own code:** Apache-2.0, which includes a patent grant. MIT is the alternative.
+- **Dependencies:** must be Apache-2.0 or MIT. Each one is checked in CI with a license-report Gradle plugin, and the build fails on anything else.
+  - **Apache-2.0:** Kotlin, Jetpack Compose, AndroidX, Room, Hilt, Coroutines, LiteRT/TensorFlow Lite, MediaPipe, Supabase server, Coil.
+  - **MIT:** supabase-kt.
+- **Unavoidable exceptions:** Google Play Billing and Google Mobile Ads (AdMob) are proprietary SDKs. There is no Apache or MIT way to take Play payments or show Google ads. They are isolated in the `billing` and `ads` modules, and the `pro` flavor leaves out the ads SDK entirely.
+- **GPL code is never copied** (for example Krita). It is used only as a feature reference.
 
 ## 5. Icon
 - The source image is in `branding/icon-source.jpg`. Android needs an **adaptive icon**, made of a foreground and a background layer in a 108dp square with a 66dp safe zone. We will use the sky-blue gradient as the background and the character as the foreground, cropped to the face and hair so it reads at 48dp, plus a monochrome themed-icon variant for Android 13 and later.
