@@ -1,168 +1,161 @@
-# Silpa: product and build plan
+# Silpa: Plan
 
-A professional drawing app for Android phones, tablets, foldables and ChromeOS.
-It has three parts: a drawing studio, a self-organizing **Image Bank** of references and parts, and a public **Gallery**.
+A professional drawing app for Android (phones, tablets, foldables and ChromeOS), Android 10 and up.
 
----
-
-## 1. Research summary
-
-### 1.1 UI design sources and what we take from each
-
-| Source | What it says | How Silpa applies it |
-|---|---|---|
-| **Android Accessibility design guide** (developer.android.com) | Touch targets of at least 48dp. Text contrast of at least 4.5:1, and 3:1 for icons and other non-text elements. Body text no smaller than 12sp. Never require a gesture to complete an action; offer a visible alternative too. Add haptic feedback. | Every tool button gets a 48dp hit area, even where the icon is drawn at 24dp. Gestures such as two-finger undo always have an on-screen button as well. Short haptic ticks confirm undo, snapping and the color picker. |
-| **Window size classes** (developer.android.com, Compose adaptive) | Width classes: Compact under 600dp, Medium 600–840dp, Expanded 840–1200dp, Large 1200–1600dp, XL from 1600dp. Height classes: Compact under 480dp. The class changes at runtime (fold, split-screen, resize). Design the Expanded layout first. | We design three studio layouts (below). The UI reacts live to folding and split-screen, and the tablet layout is designed before the phone layout. |
-| **Nielsen Norman Group: 10 Usability Heuristics** | Show system status. Give users control and freedom (undo, redo, a way out). Keep things consistent. Prevent errors. Favor recognition over recall. Offer accelerators for experts. Keep the design minimal. Let users recover from errors in plain language. | Unlimited undo backed by a visual History panel. Autosave plus crash recovery. Brush previews show a real sample stroke instead of only a name. Hidden expert gestures and keyboard shortcuts. An on-screen indicator shows the active brush, size and opacity. |
-| **Laws of UX** (lawsofux.com) | Fitts's law (big, near targets are faster). Hick's law and choice overload (fewer choices means faster decisions). Miller's law (people hold about 7±2 items in mind). Doherty threshold (respond within 400ms). Jakob's law (match the apps users already know). Aesthetic-usability effect. Tesler's law (complexity can be moved but not removed). Peak-end rule. | The main toolbar holds at most 7 tools. Advanced tools sit one level deeper, the way Procreate and Infinite Painter do it. Controls sit at screen edges where the hand rests. Every UI action responds in under 100ms and ink appears in under 20ms. Gesture conventions follow the competitors. Finishing and exporting a drawing ends with a satisfying moment, such as a timelapse preview. |
-| **Infinite Painter interface docs** (competitor teardown) | Long press reveals secondary functions. Virtual sliders work by dragging on a button with no visible track. Mini-toolbars appear only while their tool is active. | Size and opacity are edge sliders you drag directly. Tool options appear in a contextual strip only while that tool is active. |
-
-### 1.2 Silpa design principles
-
-1. **The canvas comes first.** Chrome covers at most 15% of the screen on phones and 20% on tablets, and full-screen mode removes it entirely (tap with four fingers to toggle).
-2. **The UI is neutral and the art provides the color.** The interface uses mid-dark neutral greys so they do not skew color perception. The brand blue appears only as an accent on selected and active states.
-3. **Progressive disclosure.** The essentials are one tap away, power tools two taps away, and nothing is buried three levels deep.
-4. **Everything can be undone and nothing is lost.** That covers autosave, the history panel, crash recovery and trash with restore.
-5. **It looks like the icon.** The palette comes from the icon: cobalt `#1F3FD1`, sky `#4CB4E6`, a warm coral highlight `#F28B6B` and soft white.
-
-### 1.3 Studio layouts by window size
-
-| Window | Layout |
-|---|---|
-| **Compact (phones)** | Slim top bar with Gallery, Undo/Redo and Layers. Bottom tool dock with 5–7 tools. A floating size/opacity slider on the left edge. Panels open as bottom sheets. |
-| **Medium (tablet portrait, unfolded foldable)** | Left rail for tools and right rail for color and layers. Panels float as cards that can be pinned. |
-| **Expanded and larger (tablet landscape, ChromeOS)** | The panels for Layers, Color, Brushes and Image Bank references dock as columns that can be resized and collapsed. Keyboard shortcuts are supported. Workspaces can be saved. |
-| **Compact height (phone landscape)** | Only the side rails remain and there is no top bar. |
-
-The whole studio has a left-handed mode that mirrors it.
-
-### 1.4 Visual system
-
-- Built on Material 3 / Material You components, themed with a custom "Silpa" color scheme. The dynamic wallpaper color is not used in the studio, because UI color must stay neutral there. It can be enabled outside the studio.
-- Spacing follows a 4dp/8dp grid. Corner radii are 12dp for cards and 28dp for sheets. Floating panels get a soft elevation shadow.
-- Type uses the device's system font (Roboto/Google Sans), so no font is bundled and there is no licensing issue. Sizes are in sp so they scale with the system.
-- Motion lasts 150–250ms with standard easing, and is reduced when the system "remove animations" setting is on.
-- Dark theme is the default. A light theme is available.
+## Decisions
+- **Business model:** one free app, with ads. A one-time **Silpa Pro** in-app purchase removes ads and unlocks Pro extras.
+- **Gallery comes last.** No accounts or server setup until everything else is built.
+- **Icon:** your image, used exactly as provided.
+- **Minimum Android version:** Android 10 (API 29). Silpa targets the latest Android and uses the newest features where the device supports them.
+- **Licenses:** Silpa's code and all its dependencies are Apache-2.0 or MIT, checked automatically on every build. Google Play Billing and Google's ad SDK are the only exceptions, because Play requires them.
 
 ---
 
-## 2. Competitor feature inventory
+## 1. Design rules
+Sources: Android Accessibility guide, Android window size classes, Nielsen Norman Group usability heuristics, Laws of UX, and teardowns of competitors' interfaces.
 
-| Feature | Procreate (iPad only; the benchmark) | Clip Studio Paint | ibis Paint X | Infinite Painter | Krita | MediBang | **Silpa target** |
+- **Canvas first.** Controls use at most 15–20% of the screen. A four-finger tap gives a completely clean canvas.
+- **Neutral grey UI** so it does not distort how you see your colors. The icon's cobalt `#1F3FD1` and sky blue `#4CB4E6` appear only as accents for selected items.
+- **No more than 7 tools on the main bar.** Everything else is one tap away. Controls sit at the screen edges, where your hand rests.
+- **Touch targets of at least 48dp.** Text contrast of at least 4.5:1, and icon contrast of at least 3:1.
+- **Every gesture also has a visible button** (two-finger tap undo, three-finger tap redo, pinch to zoom and rotate, long-press for the eyedropper).
+- **Speed targets:** ink appears in under 20ms and every UI action responds in under 100ms.
+- **Nothing is lost:** unlimited undo, a visual history panel, autosave, crash recovery, and a trash folder you can restore from.
+- **Layouts:**
+
+  | Screen | Layout |
+  |---|---|
+  | Phone | Bottom tool dock; panels open as sheets from the bottom |
+  | Tablet | Tool rails on both sides; floating panels you can pin |
+  | Large tablet or ChromeOS | Docked panel columns, keyboard shortcuts, saved workspaces |
+
+  The layout updates live when you fold the device, resize the window or use split-screen. A left-handed mode mirrors everything.
+- **Visual style:** built on Material 3 with a 4dp/8dp spacing grid, 12dp rounded cards and 150–250ms animations. Dark theme by default, with a light theme option.
+
+---
+
+## 2. Competitors and their features
+
+| Feature | Procreate | Clip Studio | ibis Paint X | Infinite Painter | Krita | MediBang | **Silpa** |
 |---|---|---|---|---|---|---|---|
-| Pressure/tilt brush engine | ✓ Valkyrie engine, Brush Studio | ✓ realistic mixing, dual brush, .abr import | ✓ large library | ✓ natural-media brushes | ✓ many brush engines | ✓ 180+ brushes | ✓ GPU engine, Brush Studio, .abr import |
-| Layers, masks, clipping, blend modes | ✓ | ✓ around 35 blend modes, adjustment layers | ✓ | ✓ Photoshop-style | ✓ | ✓ | ✓ including adjustment layers |
-| Vector layers | – | ✓ | – | partial | ✓ | – | phase 3 |
-| Selections and transform (warp, mesh, liquify) | ✓ | ✓ mesh, puppet warp, liquify | ✓ | ✓ | ✓ | basic | ✓ |
-| Perspective and drawing guides | ✓ 2D grid, isometric, perspective, symmetry | ✓ perspective, fisheye and curve rulers | ✓ | ✓ 6 grid types (1/2/3-point, curvilinear, isometric) | ✓ assistants | ✓ | ✓ all of these |
-| Symmetry / kaleidoscope | ✓ | ✓ | ✓ | ✓ up to 32 planes | ✓ | ✓ | ✓ |
-| Line smoothing / stabilizer | ✓ StreamLine | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ with predictive inking |
-| Shape snapping | ✓ QuickShape | ✓ Smart Shape | ✓ | ✓ | – | – | ✓ |
-| Filters and adjustments | ✓ | ✓ very extensive | ✓ 80+ | ✓ | ✓ | ✓ | ✓ |
+| Pressure/tilt brushes and a brush editor | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Photoshop brush (.abr) import | ✓ | ✓ | – | – | ✓ | – | ✓ |
+| Layers, masks, clipping, blend modes | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Adjustment layers | – | ✓ | – | – | ✓ | – | ✓ |
+| Vector layers | – | ✓ | – | partial | ✓ | – | ✓ |
+| Selections, transform, warp, mesh, liquify | ✓ | ✓ | ✓ | ✓ | ✓ | basic | ✓ |
+| Perspective guides and rulers | ✓ | ✓ | ✓ | ✓ (6 grids) | ✓ | ✓ | ✓ |
+| Symmetry and kaleidoscope | ✓ | ✓ | ✓ | ✓ (32 planes) | ✓ | ✓ | ✓ |
+| Line smoothing and shape snapping | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Filters | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Text | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Comics (panels, balloons, tones) | – | ✓ excellent | ✓ | – | partial | ✓ 1000 tones | phase 3 |
-| Animation | ✓ Animation Assist; Dreams is a separate app | ✓ timeline, onion skin | ✓ basic | ✓ basic | ✓ | – | phase 4 |
-| 3D models / poses | ✓ 3D painting | ✓ 3D figures, pose scanner | – | – | – | – | later; Image Bank covers pose references |
-| Reference image window | ✓ | ✓ sub view | ✓ | ✓ | ✓ | – | ✓ fed by the Image Bank |
-| **Organized asset bank** | – | Material palette (manual) | materials (manual) | – | resource tags (manual) | materials | **✓ auto-organized (key differentiator)** |
+| Comic panels, speech balloons, screentones | – | ✓ | ✓ | – | partial | ✓ | ✓ |
+| Frame-by-frame animation and onion skin | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ |
+| Reference window | ✓ | ✓ | ✓ | ✓ | ✓ | – | ✓ |
 | Timelapse recording | ✓ | ✓ | ✓ | ✓ | – | – | ✓ |
 | PSD import/export | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Community gallery | forum only | Clip Studio Share/Assets | ✓ online gallery | – | – | ✓ | ✓ |
-| Business model | one-time payment | subscription tiers (DEBUT/PRO/EX) | free with ads, plus ad removal and Prime subscription | freemium with Pro unlock | free (open source) | free with ads | free with light ads, plus one-time "Silpa Pro" |
+| **Asset bank that organizes itself** | – | manual | manual | – | manual | manual | **✓ automatic** |
+| Community gallery | forum | ✓ | ✓ | – | – | ✓ | ✓ |
+| Price model | paid | subscription | ads + removal / subscription | freemium | free | ads | free + Pro |
 
-**Where Silpa can win:** No Android competitor offers Procreate-level polish together with an asset library that **organizes itself**. ibis Paint's ads are a frequent complaint, so "ads never appear on the canvas" is a selling point. Procreate does not exist on Android at all.
-
----
-
-## 3. Feature specification
-
-### 3.1 Studio (drawing)
-- **Engine:** OpenGL ES 3.x canvas on a `SurfaceView`, with low-latency **front-buffered rendering** (`androidx.graphics:graphics-core`) and **motion prediction** (`androidx.input`). The target is under 20ms from pen to pixel on supported devices. Strokes use historical (batched) touch points, pressure, tilt and orientation. Tiled canvases of up to 8K, with the tile cache kept within the device's memory budget.
-- **Brushes:** stamp brushes and smudge/blend brushes, plus wet mixing later. **Brush Studio** controls shape, grain, spacing, jitter, and the curves for pressure, tilt and velocity. Import of `.abr` (Photoshop) brush packs. About 120 bundled brushes in 12 sets.
-- **Layers:** up to 200, limited by device. Folders, opacity, 25+ blend modes, clipping, alpha lock, masks, reference layers, and adjustment layers (HSL, curves, levels, gradient map).
-- **Tools:** brush, eraser, smudge, fill (with gap closing), gradient, eyedropper (long press anywhere), selection (lasso, rectangle, ellipse, magic wand, selection pen), transform (free, distort, perspective, warp, mesh), liquify, clone, text and shapes.
-- **Assists:** StreamLine-style smoothing, QuickShape-style snapping, rulers, and perspective guides (1/2/3-point, curvilinear, isometric). Symmetry modes: vertical, horizontal, radial and kaleidoscope (up to 32 planes).
-- **Color:** wheel, square, HSV/RGB sliders and harmonies. Palettes with import from image or `.ase`. Recent colors. Color-blindness preview.
-- **Gestures:** pinch to zoom and rotate. Two-finger tap undoes and three-finger tap redoes. Four-finger tap toggles full screen. Palm rejection plus a "stylus-only drawing" mode. Each gesture also has a visible button.
-- **Files:** autosave every stroke batch and keep crash recovery. Native `.silpa` format (a zip of layer tiles plus a JSON manifest). Import and export of PSD, PNG, JPG and WebP, export of PDF, and an image-sequence or MP4 timelapse.
-- **Later phases:** vector layers, comic panels and tones, frame-by-frame animation with onion skin.
-
-### 3.2 Image Bank (self-organizing references)
-Goal: drop images in and never organize them by hand.
-- **Sources:** share-to-Silpa from any app, the photo picker, the camera, the canvas or a selection ("save to bank"), and the public Gallery (respecting licenses).
-- **Automatic organization, all on-device, so it is private and works offline:**
-  1. **Category classifier** (a small model we train ourselves, running on LiteRT/TensorFlow Lite, Apache-2.0) sorts items into Faces, Eyes, Noses, Mouths, Ears, Hands, Hair, Full characters, Poses, Houses/Buildings, Interiors, Landscapes, Plants, Animals, Vehicles, Props, Textures and Patterns.
-  2. **Face-part extraction:** when a face is detected (MediaPipe Face Landmarker, Apache-2.0), Silpa offers to split it into eye, nose and mouth crops automatically, each filed in its own category.
-  3. **Auto-tags:** dominant color palette, style (line art, painted, photo), orientation, and transparency (cut-out versus full image).
-  4. **Similarity:** image embeddings drive search such as "show me eyes like this one" and group near-duplicates using a perceptual hash.
-  5. **Smart collections** are rule-based, for example "Houses + blue + line art", and update themselves.
-  6. **Manual override:** moving or retagging an item teaches the user's personal classifier through on-device fine-tuning of the final layer.
-- **Use in the studio:** a dockable Bank panel. Drag an item onto the canvas to place it as a layer, a reference window, a stamp brush or a color palette.
-- **Storage:** Room database plus app-private files. Optional cloud backup for signed-in users.
-
-### 3.3 Gallery (online community)
-- Browse Featured, New, Following and Tags. Each artwork page shows the timelapse replay if the artist shared it.
-- Posting from the studio takes one tap. The artist chooses visibility, a license (all rights reserved, CC-BY or CC0) and "allow saving to Image Bank".
-- Profiles, follows, likes, comments, collections.
-- **Required by Google Play's user-generated-content policy:** users accept the terms before posting, in-app **report** for content and users, user **blocking**, ongoing moderation (an automated pre-screen plus a human review queue), and sensitive content hidden by default behind a filter that takes two or more actions to enable, with an age gate.
-- **Backend:** Supabase (Apache-2.0), for authentication, Postgres, storage and edge functions. It can be self-hosted later. The Android client is supabase-kt (MIT). An Apache-licensed open NSFW classifier runs on upload for pre-screening, followed by a human review queue.
-
-### 3.4 Monetization: Free (with ads) and Pro (no ads)
-- **Recommended:** one Play listing, free with a one-time in-app purchase of "Silpa Pro" through Play Billing. Pro removes ads and unlocks extras such as unlimited layers above 20, the premium brush packs, 8K canvases and cloud backup of the Image Bank. A single listing keeps reviews and installs together and lets users upgrade without reinstalling. The codebase also uses Gradle `free`/`pro` product flavors, so a separate paid "Silpa Pro" listing can be built from the same code if you want one.
-- **Rules for unobtrusive ads:**
-  - **Never** in the studio or on the canvas, and never while drawing.
-  - **No interstitials, no video ads and no pop-ups.**
-  - One small adaptive banner at the bottom of the Home and Gallery screens, plus at most one clearly labelled native ad card per 12 Gallery items.
-  - Consent through Google's UMP SDK (GDPR/CCPA), and no personalized ads without consent.
+**Where Silpa wins:**
+- Procreate-level polish on Android, where Procreate isn't available.
+- An image bank that organizes itself.
+- Ads that never appear on the canvas. Heavy ads are a common complaint about ibis Paint.
 
 ---
 
-## 4. Architecture
+## 3. Features
 
-- **Language and UI:** Kotlin, Jetpack Compose, Material 3 and the Compose adaptive layouts library.
-- **Canvas:** OpenGL ES 3.x renderer (Kotlin with C++ via the NDK for hot paths such as compositing, PSD encoding and flood fill), front-buffered rendering and motion prediction.
+### Studio
+- **Engine:** GPU rendering with low-latency front-buffer inking and pen motion prediction. Uses stylus pressure, tilt and orientation. Large tiled canvases up to 16K, limited only by device memory.
+- **Brushes:** 300+ bundled brushes, including pencils, inks, markers, paints, watercolor, airbrush, textures, effects, and comic tones and lines. Paint brushes mix color wet. The brush editor controls shape, grain, spacing, jitter and dual brush, plus pressure, tilt and speed curves. You can import Photoshop brushes (.abr) and import and export Silpa brush packs.
+- **Layers:**
+  - unlimited, up to device memory;
+  - folders, opacity and 25+ blend modes;
+  - clipping, alpha lock, masks and reference layers;
+  - adjustment layers (hue/saturation, curves, levels, color balance, gradient map);
+  - vector layers with editable strokes.
+- **Tools:** brush, eraser, smudge, fill (with gap closing), gradient, eyedropper, selections (lasso, rectangle, ellipse, magic wand, selection pen), transform (free, distort, perspective, warp, mesh), liquify, clone, text, shapes.
+- **Drawing aids:**
+  - line smoothing and shape snapping;
+  - rulers;
+  - perspective guides (1/2/3-point, curved, isometric);
+  - symmetry (vertical, horizontal, radial, kaleidoscope up to 32 planes).
+- **Filters:** blurs (Gaussian, motion, radial), sharpen, noise, glow, chromatic aberration, halftone, posterize.
+- **Color:** wheel, square and sliders; color harmonies; palettes, including palettes generated from an image and imported from Adobe swatch (.ase) files; recent colors; a color-blindness preview.
+- **Comics:** panel layouts, speech balloons, screentones, speed lines and focus lines, and multi-page projects.
+- **Animation:** frame-by-frame timeline, onion skin and frame rate control. Export to GIF, MP4 or a PNG sequence.
+- **Files:** native `.silpa` format. Imports and exports PSD, PNG, JPG and WebP, exports PDF, and records timelapses.
+
+### Image Bank (organizes itself)
+- **Adding images:** share to Silpa from any app, the photo picker, the camera, or save a selection from the canvas.
+- **Automatic sorting, done on the device so it is private and works offline.** Categories:
+  - face parts: faces, eyes, noses, mouths, ears;
+  - bodies and characters: hands, hair, characters, poses;
+  - places: houses and buildings, interiors, landscapes, plants;
+  - things: animals, vehicles, props;
+  - surfaces: textures, patterns.
+- **Face splitting:** when you add a face, Silpa cuts out the eyes, nose and mouth automatically and files each piece in its own category.
+- **Automatic tags:** colors, style (line art, painted, photo), orientation, and whether the image is a cutout.
+- **Finding images:** "find similar" search, duplicate detection, and smart folders that update themselves.
+- **Learns from you:** if you move an item to a different category, future sorting adjusts.
+- **Use while drawing:** drag an item onto the canvas as a layer, a floating reference, a stamp brush or a color palette.
+
+### Free and Pro
+- **Free:** the full drawing studio and the Image Bank, with light ads.
+- **Pro (one-time purchase through Google Play):** no ads, plus premium brush packs, Pro filters and export options.
+- **Ad rules:**
+  - never shown in the studio;
+  - no full-screen, video or pop-up ads;
+  - one small banner on the Home and Gallery screens;
+  - privacy consent through Google's UMP SDK.
+
+### Gallery (built last)
+- **Browsing:** Featured, New, Following and tag feeds, with timelapse replays.
+- **Posting and social:** posting takes one tap from the studio. Profiles, follows, likes, comments and collections.
+- **Licenses:** the artist chooses all rights reserved, CC-BY or CC0, and whether others can save the work to their Image Bank.
+- **Required by Google Play:**
+  - users accept the terms before posting;
+  - in-app report and block;
+  - automatic screening plus human review;
+  - adult content hidden by default, with an age check.
+- **Server:** Supabase (Apache-2.0), set up only when this phase starts.
+
+---
+
+## 4. Technology
+- **App:** Kotlin, Jetpack Compose and Material 3. MVVM architecture, Hilt for dependency injection, Coroutines.
+- **Drawing engine:** OpenGL ES 3, plus C++ through the NDK for heavy operations (compositing, fills, PSD).
+- **Image sorting:** MediaPipe and LiteRT (Apache-2.0) running on the device.
+- **Storage:** a Room database plus app-private files.
 - **Modules:**
-  - `app`
-  - `core:design` (theme and components)
-  - `core:data` (Room, DataStore)
-  - `feature:studio`, `feature:bank`, `feature:gallery`, `feature:home`
-  - `engine` (rendering and brushes)
-  - `ml` (classifiers)
-  - `billing`, `ads` (stubbed out in the `pro` flavor)
-- **Architecture pattern:** MVVM with unidirectional data flow, Hilt for dependency injection, and Coroutines/Flow.
-- **Minimum SDK:** 29 (Android 10). Target SDK is the latest.
-- **Quality:**
-  - Unit tests for the engine math.
-  - Screenshot tests for the UI.
-  - Benchmark tests for stroke latency.
-  - CI on GitHub Actions.
+
+  | Group | Modules |
+  |---|---|
+  | App | `app` |
+  | Core | `core:design`, `core:data` |
+  | Features | `feature:home`, `feature:studio`, `feature:bank`, `feature:gallery` |
+  | Engine and ML | `engine`, `ml` |
+  | Monetization | `billing`, `ads` |
+
+- **Quality checks:**
+  - engine unit tests;
+  - UI screenshot tests;
+  - stroke latency benchmarks;
+  - license check;
+  - continuous integration (CI) on GitHub Actions.
 
 ---
 
-## 4a. Licensing policy (owner preference: Apache-2.0 and MIT)
-- **Silpa's own code:** Apache-2.0, which includes a patent grant. MIT is the alternative.
-- **Dependencies:** must be Apache-2.0 or MIT. Each one is checked in CI with a license-report Gradle plugin, and the build fails on anything else.
-  - **Apache-2.0:** Kotlin, Jetpack Compose, AndroidX, Room, Hilt, Coroutines, LiteRT/TensorFlow Lite, MediaPipe, Supabase server, Coil.
-  - **MIT:** supabase-kt.
-- **Unavoidable exceptions:** Google Play Billing and Google Mobile Ads (AdMob) are proprietary SDKs. There is no Apache or MIT way to take Play payments or show Google ads. They are isolated in the `billing` and `ads` modules, and the `pro` flavor leaves out the ads SDK entirely.
-- **GPL code is never copied** (for example Krita). It is used only as a feature reference.
+## 5. Build order
 
-## 5. Icon
-- The source image is in `branding/icon-source.jpg`. Android needs an **adaptive icon**, made of a foreground and a background layer in a 108dp square with a 66dp safe zone. We will use the sky-blue gradient as the background and the character as the foreground, cropped to the face and hair so it reads at 48dp, plus a monochrome themed-icon variant for Android 13 and later.
-- ⚠️ **Store-policy note:** Google Play's sexual-content policy lists "sexually suggestive poses in which the subject is … minimally clothed" as a violation, and store listings are reviewed. The lower part of the image (chest, droplets) is risky as a launcher or store icon. Cropping to head and shoulders fixes this and also reads much better at small sizes.
-
----
-
-## 6. Roadmap
-
-| Phase | Scope | Exit criteria |
-|---|---|---|
-| **0. Foundation** | Gradle multi-module project, design system, adaptive icon, navigation shell, CI | The app builds and installs, and theme and icon are done |
-| **1. Studio MVP** | Low-latency inking, pressure, 10 brushes, layers (basic), undo/redo, color picker, zoom/rotate, autosave, PNG/JPG export | Drawing a full illustration end-to-end feels smooth on a mid-range tablet |
-| **2. Pro studio** | Brush Studio, blend modes, masks, selections, transform/liquify, filters and adjustments, guides, perspective, symmetry, text, PSD, timelapse | Feature parity with the core of Infinite Painter and ibis Paint |
-| **3. Image Bank** | Import, auto-categorize, face-part extraction, tags, similarity search, smart collections, studio panel | 95% of test images land in the right category, or are fixed with one tap |
-| **4. Gallery** | Accounts, posting, feed, profiles, moderation, report/block | Passes the Play user-generated-content requirements |
-| **5. Monetization** | Billing, Pro unlock, ad rules, UMP consent | Ads never render in the studio, which is verified by a test |
-| **6. Later** | Vector layers, comics tools, animation, cloud sync | — |
-
-Honest scope note: an app at the level of Clip Studio or Procreate is a multi-year effort for a team. The phases above deliver a shippable, good-looking app first (phases 0–1), and grow it from there.
+| Step | Contents |
+|---|---|
+| 1 | **Foundation:** project setup, design system, your icon, navigation, Home screen |
+| 2 | **Core studio:** fast inking, brushes, layers, undo/history, color, zoom/rotate, autosave, export |
+| 3 | **Pro studio:** brush editor, blend modes, masks, adjustment layers, selections, transform/liquify, filters, guides, symmetry, text, PSD, timelapse |
+| 4 | **Image Bank:** auto-sorting, face splitting, tags, similar search, smart folders, studio panel |
+| 5 | **Comics, vector layers and animation** |
+| 6 | **Free and Pro:** Play Billing, ads with the rules above |
+| 7 | **Gallery:** accounts, server, feed, posting, moderation |
