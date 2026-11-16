@@ -1,0 +1,16 @@
+<resources>
+    <color name="silpa_background">#FF121316</color>
+    <color name="ic_launcher_background">#FFFFFFFF</color>
+
+    <style name="Theme.Silpa" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/silpa_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <style name="Theme.Silpa.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/silpa_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.Silpa</item>
+    </style>
+</resources>
