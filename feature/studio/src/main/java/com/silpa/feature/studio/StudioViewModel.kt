@@ -65,7 +65,7 @@ import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.sin
 
-enum class Tool(val label: String) { Brush("Brush"), Smudge("Smudge"), Eraser("Eraser"), Select("Select"), Transform("Transform"), Fill("Fill"), Eyedropper("Eyedropper") }
+enum class Tool(val label: String, val short: String) { Brush("Brush", "Brush"), Smudge("Smudge", "Smudge"), Eraser("Eraser", "Erase"), Select("Select", "Select"), Transform("Transform", "Move"), Fill("Fill", "Fill"), Eyedropper("Eyedropper", "Pick") }
 enum class SelectShape(val label: String) { Lasso("Lasso"), Rect("Rectangle"), Ellipse("Ellipse"), Wand("Magic wand") }
 enum class FillMode(val label: String) { Flood("Bucket"), Linear("Linear gradient"), Radial("Radial gradient") }
 enum class TransformMode(val label: String) { Uniform("Uniform"), Free("Free"), Distort("Distort") }
@@ -220,7 +220,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     private fun captureTimelapse() {
         val id = projectId ?: return
         val now = System.currentTimeMillis()
-        if (now - lastTimelapse < 350) return
+        if (now - lastTimelapse < 1500) return
         lastTimelapse = now
         val frame = compositor.renderPreview(720)
         val n = timelapseCount++
@@ -367,10 +367,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     fun fill(x: Float, y: Float) {
         val d = doc ?: return; val l = d.active
         if (l.locked) { toast = "“${l.name}” is locked"; return }
-        val src = if (fillAllLayers) compositor.renderFull(paper = false) else l.toBitmap()
+        busy = "Filling…"
         val tol = fillTolerance.toInt(); val c = color
         viewModelScope.launch {
-            busy = "Filling…"
+            kotlinx.coroutines.yield()
+            val src = if (fillAllLayers) compositor.renderFull(paper = false) else l.toBitmap()
             val mask = withContext(Dispatchers.Default) {
                 val px = IntArray(d.width * d.height); src.getPixels(px, 0, d.width, 0, 0, d.width, d.height); src.recycle()
                 Ops.floodMask(px, d.width, d.height, x.toInt(), y.toInt(), tol, 1)

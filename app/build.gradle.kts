@@ -19,6 +19,9 @@ android {
 
     buildTypes {
         release {
+            // Debug key so the optimized build can be sideloaded for testing. Use your upload key for Play.
+            signingConfig = signingConfigs.getByName("debug")
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

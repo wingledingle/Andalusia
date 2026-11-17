@@ -195,7 +195,7 @@ private fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPoin
 private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        SkeuoSwitch(checked = checked, onCheckedChange = onChange, trackPalette = SkeuoPalettes.RetroBlack, knobPalette = if (checked) SilpaSkeuo.Cobalt else SkeuoPalettes.Metallic, trackWidth = 64.dp, trackHeight = 32.dp, knobWidth = 34.dp, knobHeight = 28.dp)
+        androidx.compose.material3.Switch(checked, onChange)
     }
 }
 
@@ -254,7 +254,7 @@ fun BrushStudioPanel(vm: StudioViewModel, close: () -> Unit) {
             Section("Save")
             OutlinedTextField(name, { name = it }, label = { Text("Brush name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(8.dp))
-            io.github.skeuocompose.SkeuoButton(text = "Save as new brush", onClick = { vm.saveCustomBrush(b.copy(name = name)) }, palette = SilpaSkeuo.Cobalt, modifier = Modifier.fillMaxWidth())
+            com.silpa.core.design.SilpaButton(text = "Save as new brush", onClick = { vm.saveCustomBrush(b.copy(name = name)) }, palette = SilpaSkeuo.Cobalt, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(24.dp))
         }
     }

@@ -70,9 +70,7 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
     private var started = false
     private var smoothing = 0.25f
     private val rnd = Random(System.nanoTime())
-    /** Deterministic jitter for previews. */
-    fun seed(v: Int) { rndSeeded = Random(v) }
-    private var rndSeeded: Random? = null
+
 
     /** Every filtered point of this stroke, for QuickShape. */
     val points = ArrayList<StrokePoint>()
@@ -88,6 +86,9 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
     private val dabMatrix = Matrix()
     private val inv = Matrix()
     private val grainShaders = HashMap<Int, BitmapShader>()
+    private var filterColor = 0
+    private var dabFilter: PorterDuffColorFilter? = null
+    private val localM = Matrix()
 
     val isActive get() = layer != null
 
@@ -233,14 +234,15 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
         dabPaint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt().coerceAtLeast(1)
         if (shader != null) {
             dabPaint.shader = shader
-            dabPaint.colorFilter = PorterDuffColorFilter(c or 0xFF000000.toInt(), PorterDuff.Mode.SRC_IN)
+            if (c != filterColor) { filterColor = c; dabFilter = PorterDuffColorFilter(c or 0xFF000000.toInt(), PorterDuff.Mode.SRC_IN) }
+            dabPaint.colorFilter = dabFilter
         } else {
             dabPaint.shader = null; dabPaint.colorFilter = null
             dabPaint.color = c or 0xFF000000.toInt()
             dabPaint.alpha = (alpha.coerceIn(0f, 1f) * 255).toInt().coerceAtLeast(1)
         }
         forTiles(x, y, d * 0.75f) { k, ox, oy ->
-            val canvas = Canvas(buf.tile(k))
+            val canvas = buf.canvas(k)
             dabMatrix.reset()
             dabMatrix.postTranslate(-res / 2, -res / 2)
             dabMatrix.postScale(sx, sy)
@@ -248,8 +250,8 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
             dabMatrix.postTranslate(x - ox, y - oy)
             if (shader != null) {
                 dabMatrix.invert(inv)
-                val local = Matrix().apply { setScale(brush.grainScale * 2f, brush.grainScale * 2f); postTranslate(-ox.toFloat(), -oy.toFloat()); postConcat(inv) }
-                shader.setLocalMatrix(local)
+                localM.setScale(brush.grainScale * 2f, brush.grainScale * 2f); localM.postTranslate(-ox.toFloat(), -oy.toFloat()); localM.postConcat(inv)
+                shader.setLocalMatrix(localM)
             }
             canvas.drawBitmap(tip, dabMatrix, dabPaint)
             compositor.invalidate(k)
@@ -373,7 +375,7 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
         val buf = buffer ?: return
         val s = shape ?: return
         for (k in buf.tiles.keys) compositor.invalidate(k)
-        buf.tiles.values.forEach { it.recycle() }; buf.tiles.clear()
+        buf.clear()
         val pts = s.outline()
         started = false; residual = 0f
         val pr = points.map { it.pressure }.average().toFloat().coerceIn(0.3f, 1f)

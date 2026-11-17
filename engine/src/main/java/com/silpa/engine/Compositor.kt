@@ -13,7 +13,10 @@ import android.graphics.PorterDuffColorFilter
 /** A stroke in progress, kept separate from the layer so stroke opacity and erasing stay clean. */
 class StrokeBuffer(val layer: Layer, val mode: BrushMode, var opacity: Float, val glow: Boolean) {
     val tiles = HashMap<Long, Bitmap>()
+    private val canvases = HashMap<Long, android.graphics.Canvas>()
     fun tile(k: Long) = tiles.getOrPut(k) { newTile() }
+    fun canvas(k: Long) = canvases.getOrPut(k) { android.graphics.Canvas(tile(k)) }
+    fun clear() { tiles.values.forEach { it.recycle() }; tiles.clear(); canvases.clear() }
 }
 
 /**
@@ -22,8 +25,8 @@ class StrokeBuffer(val layer: Layer, val mode: BrushMode, var opacity: Float, va
  */
 class Compositor(private val doc: Document, private val selection: Selection) {
     private val cache = HashMap<Long, Bitmap>()
-    private val dirty = HashSet<Long>()
-    private var allDirty = true
+    /** Tiles whose cached composite is up to date. Everything else is recomposited on demand. */
+    private val valid = HashSet<Long>()
 
     var stroke: StrokeBuffer? = null
     /** While transforming, the lifted layer shows these tiles instead of its own. */
@@ -35,28 +38,19 @@ class Compositor(private val doc: Document, private val selection: Selection) {
     private val scratchC = newTile()
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG)
 
-    fun invalidate(k: Long) { dirty += k }
-    fun invalidateAll() { allDirty = true }
+    fun invalidate(k: Long) { valid -= k }
+    fun invalidateAll() { valid.clear() }
 
     fun tile(k: Long): Bitmap {
         val c = cache[k]
-        if (c != null && !allDirty && k !in dirty) return c
+        if (c != null && k in valid) return c
         val out = c ?: newTile().also { cache[k] = it }
         compose(k, out, true)
-        dirty -= k
+        valid += k
         return out
     }
 
-    /** Call after a full redraw pass so stale flags don't linger. */
-    fun frameDone(visibleAll: Boolean) {
-        if (visibleAll) { allDirty = false; dirty.clear() }
-    }
-
-    fun endAllDirtyIfCovered(covered: Collection<Long>) {
-        if (allDirty) { for (k in covered) dirty -= k; allDirty = false; dirty += cache.keys.filter { it !in covered } }
-    }
-
-    fun releaseCache() { cache.values.forEach { it.recycle() }; cache.clear(); allDirty = true }
+    fun releaseCache() { cache.values.forEach { it.recycle() }; cache.clear(); valid.clear() }
 
     private fun layerTile(layer: Layer, k: Long): Bitmap? {
         val base = if (layer === liftedLayer) liftedTiles[k] else layer.tiles[k]

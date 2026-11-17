@@ -91,7 +91,6 @@ import compose.icons.tablericons.PlayerPlay
 import compose.icons.tablericons.Plus
 import compose.icons.tablericons.Share
 import compose.icons.tablericons.X
-import io.github.skeuocompose.SkeuoButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -221,7 +220,7 @@ private fun ComicTab(vm: StudioViewModel) {
     Labeled("Gutter", gutter, 0f..160f) { gutter = it }
     Labeled("Border", border, 1f..40f) { border = it }
     Row(verticalAlignment = Alignment.CenterVertically) { Text("White gutters", Modifier.weight(1f)); Switch(white, { white = it }) }
-    SkeuoButton(text = "Add panels", onClick = { vm.addPanels(layout, gutter, border, white) }, palette = SilpaSkeuo.Cobalt, modifier = Modifier.fillMaxWidth())
+    com.silpa.core.design.SilpaButton(text = "Add panels", onClick = { vm.addPanels(layout, gutter, border, white) }, palette = SilpaSkeuo.Cobalt, modifier = Modifier.fillMaxWidth())
     Header("Effects (uses current color, respects selection)")
     var angle by remember { mutableFloatStateOf(0f) }
     var count by remember { mutableFloatStateOf(180f) }
@@ -282,8 +281,8 @@ private fun AnimateTab(vm: StudioViewModel, share: (java.io.File, String) -> Uni
         Labeled("Onion opacity", a.onionOpacity, 0.05f..0.9f, { "${(it * 100).roundToInt()}%" }) { vm.setAnimation(a.copy(onionOpacity = it)); rev++ }
         Row(verticalAlignment = Alignment.CenterVertically) { Text("Loop", Modifier.weight(1f)); Switch(a.loop, { vm.setAnimation(a.copy(loop = it)); rev++ }) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SkeuoButton(text = if (vm.playing) "Stop" else "Play", onClick = vm::togglePlay, palette = SilpaSkeuo.Cobalt)
-            SkeuoButton(text = "Add frame", onClick = vm::addLayer, palette = SilpaSkeuo.Graphite)
+            com.silpa.core.design.SilpaButton(text = if (vm.playing) "Stop" else "Play", onClick = vm::togglePlay, palette = SilpaSkeuo.Cobalt)
+            com.silpa.core.design.SilpaButton(text = "Add frame", onClick = vm::addLayer, palette = SilpaSkeuo.Graphite)
         }
         Header("Export animation")
         Row { TextButton({ vm.exportForShare(StudioViewModel.Format.GIF) { share(it, "image/gif") } }) { Text("Share GIF") }; TextButton({ vm.exportForShare(StudioViewModel.Format.MP4) { share(it, "video/mp4") } }) { Text("Share MP4") } }

@@ -85,7 +85,6 @@ import compose.icons.TablerIcons
 import compose.icons.tablericons.Photo
 import compose.icons.tablericons.Search
 import compose.icons.tablericons.Star
-import io.github.skeuocompose.SkeuoButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -169,7 +168,7 @@ fun BankScreen(modifier: Modifier = Modifier, incoming: List<Uri> = emptyList(),
                             Text("Image Bank", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                             Text("${items.size} references · sorted automatically on your device", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        SkeuoButton(text = "Add images", onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, palette = SilpaSkeuo.Cobalt)
+                        com.silpa.core.design.SilpaButton(text = "Add images", onClick = { pick.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }, palette = SilpaSkeuo.Cobalt)
                     }
                     if (busy > 0 || seeding) {
                         Spacer(Modifier.height(8.dp))
@@ -258,7 +257,7 @@ private fun ItemDetail(item: BankItem, onMove: (String) -> Unit, onSimilar: () -
         Text("Tags: " + item.tags.joinToString(", "), style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SkeuoButton(text = "Find similar", onClick = onSimilar, palette = SilpaSkeuo.Cobalt)
+            com.silpa.core.design.SilpaButton(text = "Find similar", onClick = onSimilar, palette = SilpaSkeuo.Cobalt)
             TextButton(onDelete) { Text("Delete", color = MaterialTheme.colorScheme.error) }
         }
         Spacer(Modifier.height(12.dp))

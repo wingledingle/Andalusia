@@ -96,7 +96,6 @@ import compose.icons.tablericons.FileImport
 import compose.icons.tablericons.Photo
 import compose.icons.tablericons.Plus
 import io.github.skeuocompose.SkeuoBevelKind
-import io.github.skeuocompose.SkeuoButton
 import io.github.skeuocompose.SkeuoSurface
 import io.github.skeuocompose.SkeuoSurfaceStyle
 import io.github.skeuocompose.SkeuoTextureKind
@@ -300,7 +299,7 @@ private fun Hero(wide: Boolean, onStart: () -> Unit) {
                         Spacer(Modifier.height(6.dp))
                         Text("Pro brushes, layers, comics & animation.", style = MaterialTheme.typography.bodyMedium, color = Color(0xCCFFFFFF))
                         Spacer(Modifier.height(14.dp))
-                        SkeuoButton(text = "Start drawing", onClick = onStart, palette = SilpaSkeuo.Cobalt)
+                        com.silpa.core.design.SilpaButton(text = "Start drawing", onClick = onStart, palette = SilpaSkeuo.Cobalt)
                     }
                     // Art sits on a white "print" card so every illustration reads cleanly on the gradient.
                     Box(Modifier.fillMaxHeight().aspectRatio(0.85f).padding(14.dp).shadow(10.dp, RoundedCornerShape(16.dp)).clip(RoundedCornerShape(16.dp)).background(Color.White)) {
@@ -326,7 +325,7 @@ private fun PaperSheet(title: String, subtitle: String, aspect: Float, highlight
             SkeuoSurface(
                 modifier = Modifier.then(if (a >= 1f) Modifier.width(96.dp) else Modifier.height(104.dp)).aspectRatio(a),
                 palette = if (highlighted) SilpaSkeuo.Cobalt else SilpaSkeuo.Paper,
-                style = SkeuoSurfaceStyle(shape = RoundedCornerShape(6.dp), contentPadding = PaddingValues(0.dp), raisedElevation = 10.dp, textureKind = SkeuoTextureKind.Grainy, bevelKind = SkeuoBevelKind.Subtle),
+                style = SkeuoSurfaceStyle(shape = RoundedCornerShape(6.dp), contentPadding = PaddingValues(0.dp), raisedElevation = 10.dp, textureKind = SkeuoTextureKind.None, bevelKind = SkeuoBevelKind.Subtle),
             ) { if (highlighted) Icon(TablerIcons.Plus, null, Modifier.size(32.dp)) }
         }
         Text(title, style = MaterialTheme.typography.labelLarge, maxLines = 1)
@@ -378,7 +377,7 @@ private fun ProDialog(dismiss: () -> Unit) {
             note?.let { Spacer(Modifier.height(8.dp)); Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         }
     }, confirmButton = {
-        SkeuoButton(text = price?.let { "Buy · $it" } ?: "Buy", onClick = {
+        com.silpa.core.design.SilpaButton(text = price?.let { "Buy · $it" } ?: "Buy", onClick = {
             val a = ctx as? Activity
             if (a == null || !pm.buy(a)) note = "The Play Store isn't available right now. Check your connection and try again."
         }, palette = SilpaSkeuo.Cobalt)

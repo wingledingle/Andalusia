@@ -82,6 +82,7 @@ import compose.icons.tablericons.LayersUnion
 import compose.icons.tablericons.Marquee2
 import compose.icons.tablericons.Maximize
 import compose.icons.tablericons.Minimize
+import compose.icons.tablericons.Palette
 import compose.icons.tablericons.Photo
 import compose.icons.tablericons.Wand
 import io.github.skeuocompose.SkeuoOrientation
@@ -150,7 +151,7 @@ fun StudioScreen(projectId: String, onBack: () -> Unit, vm: StudioViewModel = vi
                         if (vm.leftHanded) { SizeOpacity(vm, 200.dp); ToolRail(vm, vertical = true) } else { ToolRail(vm, vertical = true); SizeOpacity(vm, 200.dp) }
                     }
                 } else {
-                    SizeOpacity(vm, 150.dp, Modifier.align(sideAlign))
+                    SizeOpacity(vm, 130.dp, Modifier.align(sideAlign))
                 }
 
                 Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -191,10 +192,9 @@ private fun TopRail(vm: StudioViewModel, wide: Boolean, onBack: () -> Unit, modi
         SkeuoRail {
             SkeuoToolKey(TablerIcons.ArrowLeft, "Back to gallery", false, onBack)
             SkeuoToolKey(TablerIcons.Wand, "Actions", vm.panel == Panel.Actions, { vm.panel = if (vm.panel == Panel.Actions) Panel.None else Panel.Actions })
-            SkeuoToolKey(TablerIcons.ArrowBackUp, "Undo", false, vm::undo, enabled = vm.canUndo || vm.floating != null)
-            SkeuoToolKey(TablerIcons.ArrowForwardUp, "Redo", false, vm::redo, enabled = vm.canRedo)
         }
         SkeuoRail {
+            SkeuoToolKey(TablerIcons.Palette, "Brush library", vm.panel == Panel.Brushes || vm.panel == Panel.BrushStudio, { vm.panel = if (vm.panel == Panel.Brushes) Panel.None else Panel.Brushes })
             if (wide) SkeuoToolKey(TablerIcons.Photo, "Image Bank", vm.panel == Panel.Bank, { vm.panel = if (vm.panel == Panel.Bank) Panel.None else Panel.Bank })
             SkeuoToolKey(TablerIcons.LayersUnion, "Layers", vm.panel == Panel.Layers, { vm.panel = if (vm.panel == Panel.Layers) Panel.None else Panel.Layers })
             Box(
@@ -213,7 +213,7 @@ fun ToolRail(vm: StudioViewModel, vertical: Boolean) {
     SkeuoRail(vertical = vertical) {
         Tool.entries.forEach { t ->
             SkeuoToolKey(
-                icon = t.icon(), label = t.label, selected = vm.tool == t,
+                icon = t.icon(), label = t.label, selected = vm.tool == t, caption = t.short,
                 onClick = {
                     if (vm.tool == t && t in listOf(Tool.Brush, Tool.Smudge, Tool.Eraser)) vm.panel = if (vm.panel == Panel.Brushes) Panel.None else Panel.Brushes
                     else {
@@ -232,18 +232,11 @@ fun ToolRail(vm: StudioViewModel, vertical: Boolean) {
 private fun SizeOpacity(vm: StudioViewModel, length: Dp, modifier: Modifier = Modifier) {
     val b = vm.brush
     SkeuoRail(modifier, vertical = true) {
-        Text("${b.size.roundToInt()}", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE8E9EE))
-        SkeuoSlider(
-            value = sizeToSlider(b.size), onValueChange = { v -> vm.updateBrush { it.copy(size = sliderToSize(v)) } },
-            orientation = SkeuoOrientation.Vertical, modifier = Modifier.height(length),
-            trackPalette = SkeuoPalettes.RetroBlack, knobPalette = SilpaSkeuo.Sky, trackThickness = 8.dp, knobWidth = 34.dp, knobHeight = 30.dp,
-        )
-        Spacer(Modifier.height(4.dp))
-        SkeuoSlider(
-            value = b.opacity, onValueChange = { v -> vm.updateBrush { it.copy(opacity = v.coerceIn(0.01f, 1f)) } },
-            orientation = SkeuoOrientation.Vertical, modifier = Modifier.height(length * 0.75f),
-            trackPalette = SkeuoPalettes.RetroBlack, knobPalette = SkeuoPalettes.Metallic, trackThickness = 8.dp, knobWidth = 34.dp, knobHeight = 30.dp,
-        )
+        SkeuoToolKey(TablerIcons.ArrowBackUp, "Undo", false, vm::undo, enabled = vm.canUndo || vm.floating != null)
+        SkeuoToolKey(TablerIcons.ArrowForwardUp, "Redo", false, vm::redo, enabled = vm.canRedo)
+        Text("${b.size.roundToInt()}px", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE8E9EE))
+        com.silpa.core.design.SilpaFader(sizeToSlider(b.size), { v -> vm.updateBrush { it.copy(size = sliderToSize(v)) } }, "Brush size", Modifier.height(length))
+        com.silpa.core.design.SilpaFader(b.opacity, { v -> vm.updateBrush { it.copy(opacity = v.coerceIn(0.01f, 1f)) } }, "Brush opacity", Modifier.height(length * 0.8f), accent = Color(0xFFB8C4FF))
         Text("${(b.opacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE8E9EE))
     }
 }
