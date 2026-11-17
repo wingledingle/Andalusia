@@ -26,5 +26,7 @@ dependencies {
     api(libs.compose.material3)
     api(libs.compose.icons.extended)
     api(libs.compose.ui.tooling.preview)
+    api(libs.skeuo.compose)
+    api(libs.tabler.icons)
     debugApi(libs.compose.ui.tooling)
 }

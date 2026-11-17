@@ -1,240 +1,340 @@
 package com.silpa.feature.studio
 
+import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Redo
-import androidx.compose.material.icons.automirrored.outlined.Undo
-import androidx.compose.material.icons.outlined.Brush
-import androidx.compose.material.icons.outlined.Colorize
-import androidx.compose.material.icons.outlined.FormatColorFill
-import androidx.compose.material.icons.outlined.Fullscreen
-import androidx.compose.material.icons.outlined.FullscreenExit
-import androidx.compose.material.icons.outlined.Gesture
-import androidx.compose.material.icons.outlined.Layers
-import androidx.compose.material.icons.outlined.OpenWith
-import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.silpa.core.design.SilpaColors
-import com.silpa.core.design.SilpaToolButton
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.silpa.core.design.SilpaSkeuo
+import com.silpa.core.design.SkeuoRail
+import com.silpa.core.design.SkeuoToolKey
 import com.silpa.core.design.Spacing
+import com.silpa.engine.SelectOp
+import compose.icons.TablerIcons
+import compose.icons.tablericons.AdjustmentsHorizontal
+import compose.icons.tablericons.ArrowBackUp
+import compose.icons.tablericons.ArrowForwardUp
+import compose.icons.tablericons.ArrowLeft
+import compose.icons.tablericons.ArrowsMaximize
+import compose.icons.tablericons.Brush
+import compose.icons.tablericons.Bucket
+import compose.icons.tablericons.ColorPicker
+import compose.icons.tablericons.Eraser
+import compose.icons.tablericons.HandFinger
+import compose.icons.tablericons.LayersUnion
+import compose.icons.tablericons.Marquee2
+import compose.icons.tablericons.Maximize
+import compose.icons.tablericons.Minimize
+import compose.icons.tablericons.Photo
+import compose.icons.tablericons.Wand
+import io.github.skeuocompose.SkeuoOrientation
+import io.github.skeuocompose.SkeuoPalettes
+import io.github.skeuocompose.SkeuoSlider
 import kotlin.math.roundToInt
 
-enum class Tool(val label: String) {
-    Brush("Brush"), Smudge("Smudge"), Eraser("Eraser"), Select("Select"),
-    Transform("Transform"), Fill("Fill"), Eyedropper("Eyedropper"),
-}
-
-@Composable
-private fun Tool.painter(): Painter = when (this) {
-    Tool.Brush -> rememberVectorPainter(Icons.Outlined.Brush)
-    Tool.Smudge -> rememberVectorPainter(Icons.Outlined.Gesture)
-    Tool.Eraser -> painterResource(R.drawable.ic_tool_eraser)
-    Tool.Select -> rememberVectorPainter(Icons.Outlined.SelectAll)
-    Tool.Transform -> rememberVectorPainter(Icons.Outlined.OpenWith)
-    Tool.Fill -> rememberVectorPainter(Icons.Outlined.FormatColorFill)
-    Tool.Eyedropper -> rememberVectorPainter(Icons.Outlined.Colorize)
+fun Tool.icon() = when (this) {
+    Tool.Brush -> TablerIcons.Brush
+    Tool.Smudge -> TablerIcons.HandFinger
+    Tool.Eraser -> TablerIcons.Eraser
+    Tool.Select -> TablerIcons.Marquee2
+    Tool.Transform -> TablerIcons.ArrowsMaximize
+    Tool.Fill -> TablerIcons.Bucket
+    Tool.Eyedropper -> TablerIcons.ColorPicker
 }
 
 /**
- * Studio shell. Canvas first: chrome floats over a neutral backdrop and collapses to nothing in
- * full-screen mode. Phones get a bottom dock; expanded widths (>= 840dp) get a left tool rail.
- * The drawing engine plugs into [CanvasArea] in step 2.
+ * Studio. Canvas first: hardware-style rails float over the canvas and disappear in full screen.
+ * Compact widths get top + bottom rails and bottom-sheet panels; expanded widths get a left tool
+ * rail and floating side panels.
  */
 @Composable
-fun StudioScreen(canvasWidth: Int, canvasHeight: Int, onBack: () -> Unit) {
-    var tool by rememberSaveable { mutableStateOf(Tool.Brush) }
-    var size by rememberSaveable { mutableFloatStateOf(0.25f) }
-    var opacity by rememberSaveable { mutableFloatStateOf(1f) }
-    var fullscreen by rememberSaveable { mutableStateOf(false) }
-    var color by rememberSaveable { mutableStateOf(0xFF1F3FD1.toInt()) }
+fun StudioScreen(projectId: String, onBack: () -> Unit, vm: StudioViewModel = viewModel()) {
+    LaunchedEffect(projectId) { vm.open(projectId) }
+    val lifecycle = LocalLifecycleOwner.current
+    DisposableEffect(lifecycle) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP) vm.saveNow() }
+        lifecycle.lifecycle.addObserver(obs); onDispose { lifecycle.lifecycle.removeObserver(obs) }
+    }
+    val snack = remember { SnackbarHostState() }
+    LaunchedEffect(vm.toast) { vm.toast?.let { snack.showSnackbar(it); vm.toast = null } }
+    var canvasView by remember { mutableStateOf<CanvasView?>(null) }
+    val context = LocalContext.current
+    val share: (java.io.File, String) -> Unit = { file, mime ->
+        val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
+        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType(mime).putExtra(Intent.EXTRA_STREAM, uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share"))
+    }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(SilpaColors.CanvasBackdrop)) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF2A2B2F))) {
         val wide = maxWidth >= 840.dp
-        CanvasArea(canvasWidth, canvasHeight, Modifier.fillMaxSize().padding(if (fullscreen) 0.dp else 56.dp))
+        val doc = vm.doc
+        if (doc != null) {
+            AndroidView(
+                factory = { ctx -> CanvasView(ctx, vm) { vm.fullscreen = !vm.fullscreen }.also { canvasView = it } },
+                modifier = Modifier.fillMaxSize(),
+                update = { v ->
+                    // Read the state the canvas depends on so changes trigger a redraw.
+                    vm.revision; vm.tool; vm.symmetry; vm.guides; vm.selectionVersion; vm.colorBlind; vm.corners; vm.floating; vm.playFrame
+                    v.invalidate()
+                },
+            )
+        }
 
-        if (fullscreen) {
+        if (vm.fullscreen) {
             Box(Modifier.align(Alignment.TopEnd).safeDrawingPadding().padding(Spacing.s)) {
-                FloatingBar {
-                    SilpaToolButton(Icons.Outlined.FullscreenExit, "Exit full screen", false, { fullscreen = false })
+                SkeuoRail { SkeuoToolKey(TablerIcons.Minimize, "Exit full screen", false, { vm.fullscreen = false }) }
+            }
+        } else if (doc != null) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.s)) {
+                TopRail(vm, wide, onBack = { vm.saveNow(); onBack() }, modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth())
+
+                val sideAlign = if (vm.leftHanded) Alignment.CenterEnd else Alignment.CenterStart
+                if (wide) {
+                    Row(Modifier.align(sideAlign), horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+                        if (vm.leftHanded) { SizeOpacity(vm, 200.dp); ToolRail(vm, vertical = true) } else { ToolRail(vm, vertical = true); SizeOpacity(vm, 200.dp) }
+                    }
+                } else {
+                    SizeOpacity(vm, 150.dp, Modifier.align(sideAlign))
+                }
+
+                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    ContextBar(vm)
+                    if (doc.animation.enabled) Timeline(vm)
+                    if (!wide) ToolRail(vm, vertical = false)
+                }
+
+                val panelMod = if (wide) Modifier.align(if (vm.leftHanded) Alignment.TopStart else Alignment.TopEnd).padding(top = 64.dp).width(380.dp).fillMaxHeight(0.86f)
+                else Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.62f)
+                AnimatedVisibility(
+                    visible = vm.panel != Panel.None,
+                    enter = if (wide) slideInHorizontally { it / 2 } + fadeIn() else slideInVertically { it } + fadeIn(),
+                    exit = if (wide) slideOutHorizontally { it / 2 } + fadeOut() else slideOutVertically { it } + fadeOut(),
+                    modifier = panelMod,
+                ) {
+                    PanelHost(vm, canvasView, share)
                 }
             }
-            return@BoxWithConstraints
         }
 
-        Box(Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.s)) {
-            // Top bar: navigation, history, panels.
-            Row(
-                Modifier.fillMaxWidth().align(Alignment.TopCenter),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FloatingBar {
-                    SilpaToolButton(Icons.AutoMirrored.Outlined.ArrowBack, "Back to home", false, onBack)
-                    Text(
-                        "Untitled · $canvasWidth × $canvasHeight",
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(end = Spacing.m),
-                        maxLines = 1,
-                    )
-                }
-                FloatingBar {
-                    SilpaToolButton(Icons.AutoMirrored.Outlined.Undo, "Undo", false, {}, enabled = false)
-                    SilpaToolButton(Icons.AutoMirrored.Outlined.Redo, "Redo", false, {}, enabled = false)
-                    SilpaToolButton(Icons.Outlined.Layers, "Layers", false, {})
-                    ColorSwatch(Color(color))
-                    SilpaToolButton(Icons.Outlined.Fullscreen, "Full screen", false, { fullscreen = true })
-                }
-            }
+        vm.referenceImage?.let { ReferenceWindow(vm, it) }
 
-            // Brush size and opacity live on the edge, where the off hand rests.
-            Column(
-                Modifier.align(if (wide) Alignment.CenterEnd else Alignment.CenterStart),
-                verticalArrangement = Arrangement.spacedBy(Spacing.m),
-            ) {
-                EdgeSlider(size, { size = it }, "Brush size", "${(1 + size * 499).roundToInt()}")
-                EdgeSlider(opacity, { opacity = it }, "Opacity", "${(opacity * 100).roundToInt()}%")
+        (vm.busy ?: if (doc == null) "Opening…" else null)?.let { msg ->
+            Surface(Modifier.align(Alignment.Center), shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerHighest, shadowElevation = 8.dp) {
+                Row(Modifier.padding(horizontal = 20.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp); Spacer(Modifier.width(12.dp)); Text(msg)
+                }
             }
+        }
+        SnackbarHost(snack, Modifier.align(Alignment.BottomCenter).safeDrawingPadding().padding(bottom = 96.dp))
+    }
+}
 
-            // Tools: at most 7 on the main bar.
-            if (wide) {
-                FloatingBar(Modifier.align(Alignment.CenterStart), vertical = true) {
-                    Tool.entries.forEach { t -> SilpaToolButton(t.painter(), t.label, t == tool, { tool = t }) }
-                }
-            } else {
-                FloatingBar(Modifier.align(Alignment.BottomCenter)) {
-                    Tool.entries.forEach { t -> SilpaToolButton(t.painter(), t.label, t == tool, { tool = t }) }
-                }
+@Composable
+private fun TopRail(vm: StudioViewModel, wide: Boolean, onBack: () -> Unit, modifier: Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+        SkeuoRail {
+            SkeuoToolKey(TablerIcons.ArrowLeft, "Back to gallery", false, onBack)
+            SkeuoToolKey(TablerIcons.Wand, "Actions", vm.panel == Panel.Actions, { vm.panel = if (vm.panel == Panel.Actions) Panel.None else Panel.Actions })
+            SkeuoToolKey(TablerIcons.ArrowBackUp, "Undo", false, vm::undo, enabled = vm.canUndo || vm.floating != null)
+            SkeuoToolKey(TablerIcons.ArrowForwardUp, "Redo", false, vm::redo, enabled = vm.canRedo)
+        }
+        SkeuoRail {
+            if (wide) SkeuoToolKey(TablerIcons.Photo, "Image Bank", vm.panel == Panel.Bank, { vm.panel = if (vm.panel == Panel.Bank) Panel.None else Panel.Bank })
+            SkeuoToolKey(TablerIcons.LayersUnion, "Layers", vm.panel == Panel.Layers, { vm.panel = if (vm.panel == Panel.Layers) Panel.None else Panel.Layers })
+            Box(
+                Modifier.size(48.dp).clip(CircleShape).clickable { vm.panel = if (vm.panel == Panel.Color) Panel.None else Panel.Color },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(34.dp).clip(CircleShape).background(Color(vm.color)).border(3.dp, Color(0xFFE8E9EE), CircleShape))
             }
+            if (wide) SkeuoToolKey(TablerIcons.Maximize, "Full screen", false, { vm.fullscreen = true })
         }
     }
 }
 
 @Composable
-private fun CanvasArea(w: Int, h: Int, modifier: Modifier) {
-    Box(modifier, contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .aspectRatio(w.toFloat() / h, matchHeightConstraintsFirst = h >= w)
-                .shadow(12.dp)
-                .background(SilpaColors.Paper),
+fun ToolRail(vm: StudioViewModel, vertical: Boolean) {
+    SkeuoRail(vertical = vertical) {
+        Tool.entries.forEach { t ->
+            SkeuoToolKey(
+                icon = t.icon(), label = t.label, selected = vm.tool == t,
+                onClick = {
+                    if (vm.tool == t && t in listOf(Tool.Brush, Tool.Smudge, Tool.Eraser)) vm.panel = if (vm.panel == Panel.Brushes) Panel.None else Panel.Brushes
+                    else {
+                        if (vm.tool == Tool.Transform && t != Tool.Transform && vm.floating != null) vm.commitTransform()
+                        vm.tool = t
+                        if (t == Tool.Transform) vm.beginTransform()
+                    }
+                },
+                onLongClick = { if (t in listOf(Tool.Brush, Tool.Smudge, Tool.Eraser)) { vm.tool = t; vm.panel = Panel.BrushStudio } },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SizeOpacity(vm: StudioViewModel, length: Dp, modifier: Modifier = Modifier) {
+    val b = vm.brush
+    SkeuoRail(modifier, vertical = true) {
+        Text("${b.size.roundToInt()}", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE8E9EE))
+        SkeuoSlider(
+            value = sizeToSlider(b.size), onValueChange = { v -> vm.updateBrush { it.copy(size = sliderToSize(v)) } },
+            orientation = SkeuoOrientation.Vertical, modifier = Modifier.height(length),
+            trackPalette = SkeuoPalettes.RetroBlack, knobPalette = SilpaSkeuo.Sky, trackThickness = 8.dp, knobWidth = 34.dp, knobHeight = 30.dp,
         )
+        Spacer(Modifier.height(4.dp))
+        SkeuoSlider(
+            value = b.opacity, onValueChange = { v -> vm.updateBrush { it.copy(opacity = v.coerceIn(0.01f, 1f)) } },
+            orientation = SkeuoOrientation.Vertical, modifier = Modifier.height(length * 0.75f),
+            trackPalette = SkeuoPalettes.RetroBlack, knobPalette = SkeuoPalettes.Metallic, trackThickness = 8.dp, knobWidth = 34.dp, knobHeight = 30.dp,
+        )
+        Text("${(b.opacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelSmall, color = Color(0xFFE8E9EE))
     }
 }
 
+/** Size slider is logarithmic so both 1px pixel work and 1000px washes are reachable. */
+fun sizeToSlider(s: Float) = (kotlin.math.ln(s.coerceIn(0.5f, 1000f) / 0.5f) / kotlin.math.ln(2000f)).toFloat()
+fun sliderToSize(v: Float) = (0.5f * Math.pow(2000.0, v.toDouble())).toFloat()
+
 @Composable
-private fun FloatingBar(
-    modifier: Modifier = Modifier,
-    vertical: Boolean = false,
-    content: @Composable () -> Unit,
-) {
+private fun ContextBar(vm: StudioViewModel) {
+    val show = vm.tool in listOf(Tool.Select, Tool.Transform, Tool.Fill)
+    if (!show) return
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
-        shadowElevation = 6.dp,
+        shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f), shadowElevation = 8.dp,
+        modifier = Modifier.widthIn(max = 720.dp),
     ) {
-        if (vertical) {
-            Column(Modifier.padding(Spacing.xs), horizontalAlignment = Alignment.CenterHorizontally) { content() }
-        } else {
-            Row(Modifier.padding(Spacing.xs), verticalAlignment = Alignment.CenterVertically) { content() }
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                when (vm.tool) {
+                    Tool.Select -> {
+                        SelectShape.entries.forEach { s -> FilterChip(vm.selectShape == s, { vm.selectShape = s }, { Text(s.label) }) }
+                        Divider()
+                        SelectOp.entries.forEach { o -> FilterChip(vm.selectOp == o, { vm.selectOp = o }, { Text(o.name) }) }
+                        Divider()
+                        TextButton(vm::selectAll) { Text("All") }
+                        TextButton(vm::invertSelection) { Text("Invert") }
+                        TextButton(vm::deselect) { Text("Deselect") }
+                        TextButton({ vm.copyToNewLayer(false) }) { Text("Copy → layer") }
+                        TextButton({ vm.copyToNewLayer(true) }) { Text("Cut → layer") }
+                        TextButton(vm::fillSelected) { Text("Fill") }
+                        TextButton(vm::clearSelected) { Text("Clear") }
+                    }
+                    Tool.Transform -> {
+                        TransformMode.entries.forEach { m -> FilterChip(vm.transformMode == m, { vm.transformMode = m }, { Text(m.label) }) }
+                        Divider()
+                        TextButton({ vm.flip(true) }) { Text("Flip H") }
+                        TextButton({ vm.flip(false) }) { Text("Flip V") }
+                        TextButton(vm::rotate90) { Text("Rotate 90°") }
+                        TextButton(vm::fitTransformToCanvas) { Text("Fit") }
+                        TextButton(vm::resetTransform) { Text("Reset") }
+                        TextButton({ vm.cancelTransform(); vm.tool = Tool.Brush }) { Text("Cancel") }
+                        TextButton({ vm.commitTransform(); vm.tool = Tool.Brush }) { Text("Done") }
+                    }
+                    Tool.Fill -> {
+                        FillMode.entries.forEach { m -> FilterChip(vm.fillMode == m, { vm.fillMode = m }, { Text(m.label) }) }
+                        Divider()
+                        Text("All layers", style = MaterialTheme.typography.labelLarge); Switch(vm.fillAllLayers, { vm.fillAllLayers = it })
+                    }
+                    else -> Unit
+                }
+            }
+            if ((vm.tool == Tool.Fill && vm.fillMode == FillMode.Flood) || (vm.tool == Tool.Select && vm.selectShape == SelectShape.Wand)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Tolerance ${vm.fillTolerance.roundToInt()}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(110.dp))
+                    Slider(vm.fillTolerance, { vm.fillTolerance = it }, valueRange = 0f..255f, modifier = Modifier.widthIn(max = 360.dp))
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ColorSwatch(color: Color) {
-    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .size(30.dp)
-                .clip(CircleShape)
-                .background(color)
-                .border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                .semantics { contentDescription = "Current color" },
-        )
+private fun Divider() = Box(Modifier.width(1.dp).height(28.dp).background(MaterialTheme.colorScheme.outlineVariant))
+
+@Composable
+fun PanelSurface(title: String, onClose: () -> Unit, actions: @Composable () -> Unit = {}, content: @Composable () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer, shadowElevation = 16.dp, tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Column {
+            Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 6.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                actions()
+                TextButton(onClose) { Text("Done") }
+            }
+            Box(Modifier.weight(1f)) { content() }
+        }
     }
 }
 
-/** Track-less vertical slider: drag anywhere on it. Exposes progress semantics for TalkBack. */
 @Composable
-private fun EdgeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, readout: String) {
-    val current by rememberUpdatedState(value)
-    val onChange by rememberUpdatedState(onValueChange)
-    Box(
-        Modifier
-            .width(40.dp)
-            .height(168.dp)
-            .shadow(6.dp, RoundedCornerShape(20.dp))
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f))
-            .pointerInput(Unit) {
-                detectVerticalDragGestures { change, drag ->
-                    change.consume()
-                    onChange((current - drag / size.height).coerceIn(0f, 1f))
-                }
-            }
-            .semantics {
-                contentDescription = label
-                progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..1f)
-                setProgress { v -> onChange(v.coerceIn(0f, 1f)); true }
-            },
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(value.coerceAtLeast(0.02f))
-                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
-        )
-        Text(
-            readout,
-            style = MaterialTheme.typography.labelSmall,
-            modifier = Modifier.padding(bottom = Spacing.s),
-        )
-        Spacer(Modifier)
+private fun PanelHost(vm: StudioViewModel, canvasView: CanvasView?, share: (java.io.File, String) -> Unit) {
+    val close = { vm.panel = Panel.None }
+    when (vm.panel) {
+        Panel.Brushes -> BrushesPanel(vm, close)
+        Panel.BrushStudio -> BrushStudioPanel(vm, close)
+        Panel.Color -> ColorPanel(vm, close)
+        Panel.Layers -> LayersPanel(vm, close)
+        Panel.Actions -> ActionsPanel(vm, canvasView, share, close)
+        Panel.Bank -> StudioBankPanel(vm, close)
+        Panel.None -> Box(Modifier.heightIn(min = 1.dp))
     }
 }

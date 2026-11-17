@@ -21,4 +21,11 @@ kotlin {
 
 dependencies {
     implementation(project(":core:design"))
+    implementation(project(":engine"))
+    implementation(project(":ml"))
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.motionprediction)
 }

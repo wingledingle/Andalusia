@@ -21,4 +21,8 @@ kotlin {
 
 dependencies {
     implementation(project(":core:design"))
+    implementation(project(":engine"))
+    implementation(project(":monetization"))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
 }

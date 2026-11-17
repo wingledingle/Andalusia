@@ -21,4 +21,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:design"))
+    implementation(project(":ml"))
+    implementation(project(":monetization"))
+    implementation(libs.androidx.activity.compose)
 }

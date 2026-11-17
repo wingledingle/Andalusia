@@ -117,6 +117,10 @@ fun SilpaTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
         colorScheme = if (darkTheme) DarkScheme else LightScheme,
         typography = SilpaTypography,
         shapes = SilpaShapes,
-        content = content,
-    )
+    ) {
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.material3.LocalContentColor provides (if (darkTheme) DarkScheme.onBackground else LightScheme.onBackground),
+            content = content,
+        )
+    }
 }
