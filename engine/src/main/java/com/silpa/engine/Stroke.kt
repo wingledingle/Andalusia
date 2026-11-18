@@ -78,7 +78,6 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
         private set
 
     // Smudge state
-    private var carry: Bitmap? = null
     private val smudgeBefore = HashMap<Long, Bitmap?>()
     private val smudgeOwned = HashSet<Long>()
 
@@ -100,7 +99,7 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
         points.clear(); shape = null
         started = false; residual = 0f; velocity = 0f; lastRaw = p
         fx = p.x; fy = p.y
-        carry = null; smudgeBefore.clear(); smudgeOwned.clear()
+        carries.clear(); carryD = 0; smudgeBefore.clear(); smudgeOwned.clear()
         if (settings.mode != BrushMode.Smudge) {
             buffer = StrokeBuffer(target, settings.mode, settings.opacity, settings.glow).also { compositor.stroke = it }
         }
@@ -163,6 +162,7 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
             if (b.sizeJitter > 0) d *= 1f - b.sizeJitter * rnd.nextFloat()
             var a = b.flow * (if (b.opacityPressure) curve(pressure) else 1f)
             if (b.opacityJitter > 0) a *= 1f - b.opacityJitter * rnd.nextFloat()
+            if (b.mode == BrushMode.Smudge) a = b.flow * (0.3f + 0.7f * curve(pressure))
             var ang = b.angle + if (b.followDirection) Math.toDegrees(direction.toDouble()).toFloat() else 0f
             if (b.angleJitter > 0) ang += (rnd.nextFloat() - 0.5f) * 360f * b.angleJitter
             var px = x; var py = y
@@ -182,7 +182,7 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
                 pt[0] = px; pt[1] = py; m.mapPoints(pt)
                 val angle = if (mirror[i]) -ang + mirrorAngle(m) else ang + rotationOf(m)
                 when (b.mode) {
-                    BrushMode.Smudge -> smudgeDab(pt[0], pt[1], d, a, angle, i == 0)
+                    BrushMode.Smudge -> smudgeDab(pt[0], pt[1], d, a, i)
                     else -> paintDab(pt[0], pt[1], d, a, angle, c)
                 }
             }
@@ -259,7 +259,11 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
     }
 
     private val scaledTips = HashMap<Int, Bitmap>()
+    /** Paint picked up by the finger (premultiplied RGBA floats), one per symmetry copy. */
+    private val carries = HashMap<Int, FloatArray>()
     private var carryD = 0
+    private var tipAlpha = FloatArray(0)
+    private var region = IntArray(0)
 
     private fun editable(k: Long): Bitmap {
         val l = layer!!
@@ -272,48 +276,127 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
         return l.tiles[k]!!
     }
 
-    private fun crop(cx: Float, cy: Float, d: Int): Bitmap {
-        val out = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888)
-        val c = Canvas(out)
-        val left = cx - d / 2f; val top = cy - d / 2f
-        forTiles(cx, cy, d / 2f + 1) { k, ox, oy ->
-            layer!!.tiles[k]?.let { c.drawBitmap(it, ox - left, oy - top, null) }
+    /**
+     * Real smudge, computed per pixel in floating point (no rounding drift, so paint never fades):
+     * canvas = canvas + (carried − canvas)·tip·strength, then the carried paint picks up the canvas.
+     * Works in premultiplied space so colour drags cleanly into empty areas.
+     */
+    private fun smudgeDab(x: Float, y: Float, diameter: Float, alpha: Float, idx: Int) {
+        val d = ceil(diameter).toInt().coerceIn(2, 320)
+        if (d != carryD) {
+            carries.clear(); carryD = d
+            val tip = Bitmap.createScaledBitmap(TipFactory.tip(brush), d, d, true)
+            val px = IntArray(d * d); tip.getPixels(px, 0, d, 0, 0, d, d)
+            tipAlpha = FloatArray(d * d) { (px[it] ushr 24) / 255f }
+            region = IntArray(d * d)
         }
-        return out
-    }
-
-    private fun smudgeDab(x: Float, y: Float, diameter: Float, alpha: Float, angle: Float, primary: Boolean) {
-        val d = ceil(diameter).toInt().coerceIn(2, 400)
-        val sample = crop(x, y, d)
-        val cr = carry
-        if (cr == null || carryD != d) {
-            if (primary) { carry?.recycle(); carry = sample; carryD = d }
+        val left = kotlin.math.round(x - d / 2f).toInt(); val top = kotlin.math.round(y - d / 2f).toInt()
+        // Gather the canvas under the dab (unpremultiplied ARGB from tiles).
+        val reg = region
+        java.util.Arrays.fill(reg, 0)
+        val l = layer!!
+        forTiles(x, y, d / 2f + 1) { k, ox, oy ->
+            val t = l.tiles[k] ?: return@forTiles
+            val x0 = maxOf(left, ox); val y0 = maxOf(top, oy); val x1 = minOf(left + d, ox + TILE); val y1 = minOf(top + d, oy + TILE)
+            if (x1 > x0 && y1 > y0) t.getPixels(reg, (y0 - top) * d + (x0 - left), d, x0 - ox, y0 - oy, x1 - x0, y1 - y0)
+        }
+        val carry = carries[idx]
+        if (carry == null) {
+            carries[idx] = FloatArray(d * d * 4).also { c -> for (i in 0 until d * d) premul(reg[i], c, i * 4) }
             return
         }
-        val tip = scaledTips.getOrPut(d) { Bitmap.createScaledBitmap(TipFactory.tip(brush), d, d, true) }
-        val stamp = cr.copy(Bitmap.Config.ARGB_8888, true)
-        Canvas(stamp).drawBitmap(tip, 0f, 0f, Paint().apply { blendMode = BlendMode.DST_IN })
-        val p = Paint(Paint.FILTER_BITMAP_FLAG).apply { this.alpha = (brush.smudgeStrength * alpha * 255).toInt().coerceIn(1, 255) }
+        val a = (brush.smudgeStrength * alpha).coerceIn(0.02f, 1f)
+        val keep = brush.smudgeStrength.coerceIn(0f, 0.98f)
+        val out = IntArray(d * d)
+        val cur = FloatArray(4)
+        for (i in 0 until d * d) {
+            premul(reg[i], cur, 0)
+            val t = tipAlpha[i] * a
+            val ci = i * 4
+            val na = cur[0] + (carry[ci] - cur[0]) * t
+            val nr = cur[1] + (carry[ci + 1] - cur[1]) * t
+            val ng = cur[2] + (carry[ci + 2] - cur[2]) * t
+            val nb = cur[3] + (carry[ci + 3] - cur[3]) * t
+            out[i] = unpremul(na, nr, ng, nb)
+            // Pick up what was under the finger.
+            carry[ci] = carry[ci] * keep + cur[0] * (1 - keep)
+            carry[ci + 1] = carry[ci + 1] * keep + cur[1] * (1 - keep)
+            carry[ci + 2] = carry[ci + 2] * keep + cur[2] * (1 - keep)
+            carry[ci + 3] = carry[ci + 3] * keep + cur[3] * (1 - keep)
+        }
+        // Write back, respecting the selection mask.
         forTiles(x, y, d / 2f + 1) { k, ox, oy ->
-            val t = editable(k)
             val mask = selection.maskFor(k)
-            if (mask == null) {
-                Canvas(t).drawBitmap(stamp, x - d / 2f - ox, y - d / 2f - oy, p)
-            } else {
-                val tmp = newTile()
-                Canvas(tmp).apply {
-                    drawBitmap(stamp, x - d / 2f - ox, y - d / 2f - oy, p)
-                    drawBitmap(mask, 0f, 0f, Paint().apply { blendMode = BlendMode.DST_IN })
-                }
-                Canvas(t).drawBitmap(tmp, 0f, 0f, null); tmp.recycle()
+            if (mask === Selection.EMPTY) return@forTiles
+            val x0 = maxOf(left, ox, 0); val y0 = maxOf(top, oy, 0); val x1 = minOf(left + d, ox + TILE, doc.width); val y1 = minOf(top + d, oy + TILE, doc.height)
+            if (x1 <= x0 || y1 <= y0) return@forTiles
+            val t = editable(k)
+            val w = x1 - x0; val h = y1 - y0
+            val patch = IntArray(w * h)
+            val old = if (mask != null) IntArray(w * h).also { t.getPixels(it, 0, w, x0 - ox, y0 - oy, w, h) } else null
+            val m = if (mask != null) IntArray(w * h).also { mask.getPixels(it, 0, w, x0 - ox, y0 - oy, w, h) } else null
+            for (yy in 0 until h) for (xx in 0 until w) {
+                val v = out[(y0 - top + yy) * d + (x0 - left + xx)]
+                patch[yy * w + xx] = if (m == null) v else lerpColor(old!![yy * w + xx], v, (m[yy * w + xx] ushr 24) / 255f)
             }
-            layer!!.touched(k); compositor.invalidate(k)
+            t.setPixels(patch, 0, w, x0 - ox, y0 - oy, w, h)
+            l.touched(k); compositor.invalidate(k)
         }
-        stamp.recycle()
-        if (primary) {
-            Canvas(cr).drawBitmap(sample, 0f, 0f, Paint().apply { this.alpha = ((1f - brush.smudgeStrength) * 255).toInt().coerceIn(0, 255) })
+    }
+
+    private fun premul(c: Int, o: FloatArray, at: Int) {
+        val a = (c ushr 24).toFloat(); val f = a / 255f
+        o[at] = a; o[at + 1] = ((c shr 16) and 255) * f; o[at + 2] = ((c shr 8) and 255) * f; o[at + 3] = (c and 255) * f
+    }
+
+    private fun unpremul(a: Float, r: Float, g: Float, b: Float): Int {
+        val ai = kotlin.math.round(a).toInt().coerceIn(0, 255)
+        if (ai == 0) return 0
+        val inv = 255f / a
+        return (ai shl 24) or (kotlin.math.round(r * inv).toInt().coerceIn(0, 255) shl 16) or
+            (kotlin.math.round(g * inv).toInt().coerceIn(0, 255) shl 8) or kotlin.math.round(b * inv).toInt().coerceIn(0, 255)
+    }
+
+    private fun lerpColor(a: Int, b: Int, t: Float): Int {
+        val pa = FloatArray(4); val pb = FloatArray(4); premul(a, pa, 0); premul(b, pb, 0)
+        return unpremul(pa[0] + (pb[0] - pa[0]) * t, pa[1] + (pb[1] - pa[1]) * t, pa[2] + (pb[2] - pa[2]) * t, pa[3] + (pb[3] - pa[3]) * t)
+    }
+
+    // ---- Shapes: line, curve, polygon, rectangle, ellipse drawn with the current brush ----
+
+    fun beginShape(target: Layer, settings: BrushSettings, argb: Int, symmetry: Symmetry) {
+        brush = if (settings.mode == BrushMode.Smudge) settings.copy(mode = BrushMode.Paint) else settings
+        color = argb; layer = target
+        transforms = symmetry.transforms()
+        mirror = transforms.map { val v = FloatArray(9); it.getValues(v); v[0] * v[4] - v[1] * v[3] < 0 }
+        points.clear(); shape = null; started = false; residual = 0f
+        buffer = StrokeBuffer(target, brush.mode, brush.opacity, brush.glow).also { compositor.stroke = it }
+    }
+
+    /** Re-renders the pending shape from scratch (called live while the user adjusts it). */
+    fun renderPath(pts: List<FloatArray>, closed: Boolean, fill: Boolean) {
+        val buf = buffer ?: return
+        for (k in buf.tiles.keys) compositor.invalidate(k)
+        buf.clear()
+        if (pts.isEmpty()) return
+        if (fill && pts.size >= 3) {
+            val path = android.graphics.Path().apply { moveTo(pts[0][0], pts[0][1]); for (i in 1 until pts.size) lineTo(pts[i][0], pts[i][1]); close() }
+            val p = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = this@StrokeEngine.color or 0xFF000000.toInt() }
+            for (m in transforms) {
+                val tp = android.graphics.Path(path); tp.transform(m)
+                val b = android.graphics.RectF(); tp.computeBounds(b, true)
+                val x0 = floor(b.left / TILE).toInt().coerceAtLeast(0); val x1 = floor(b.right / TILE).toInt().coerceAtMost(doc.tilesX - 1)
+                val y0 = floor(b.top / TILE).toInt().coerceAtLeast(0); val y1 = floor(b.bottom / TILE).toInt().coerceAtMost(doc.tilesY - 1)
+                for (ty in y0..y1) for (tx in x0..x1) {
+                    val k = tileKey(tx, ty); val c = buf.canvas(k)
+                    c.save(); c.translate(-(tx * TILE).toFloat(), -(ty * TILE).toFloat()); c.drawPath(tp, p); c.restore()
+                    compositor.invalidate(k)
+                }
+            }
         }
-        sample.recycle()
+        started = false; residual = 0f; direction = 0f
+        val seq = if (closed && pts.size > 2) pts + listOf(pts[0]) else pts
+        for (pt in seq) emitTo(pt[0], pt[1], 0.85f, 0f)
     }
 
     /** Finishes the stroke and returns the undoable edit. */
@@ -321,7 +404,7 @@ class StrokeEngine(private val doc: Document, private val selection: Selection, 
         val l = layer ?: return null
         layer = null
         if (brush.mode == BrushMode.Smudge) {
-            carry?.recycle(); carry = null
+            carries.clear(); carryD = 0
             if (smudgeBefore.isEmpty()) return null
             val after = smudgeOwned.associateWith { l.tiles[it] }
             return TileEdit(brush.name, l, HashMap(smudgeBefore), after)

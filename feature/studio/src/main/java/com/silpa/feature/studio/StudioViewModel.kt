@@ -69,6 +69,8 @@ enum class Tool(val label: String, val short: String) { Brush("Brush", "Brush"),
 enum class SelectShape(val label: String) { Lasso("Lasso"), Rect("Rectangle"), Ellipse("Ellipse"), Wand("Magic wand") }
 enum class FillMode(val label: String) { Flood("Bucket"), Linear("Linear gradient"), Radial("Radial gradient") }
 enum class TransformMode(val label: String) { Uniform("Uniform"), Free("Free"), Distort("Distort") }
+enum class DrawMode(val label: String) { Freehand("Freehand"), Line("Line"), Curve("Curve"), Polygon("Polygon"), Rect("Rectangle"), Ellipse("Ellipse") }
+
 enum class Panel { None, Brushes, BrushStudio, Color, Layers, Actions, Bank }
 
 data class Guides(
@@ -124,6 +126,12 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     var guides by mutableStateOf(Guides())
     var selectShape by mutableStateOf(SelectShape.Lasso)
     var selectOp by mutableStateOf(SelectOp.Replace)
+    var drawMode by mutableStateOf(DrawMode.Freehand); private set
+    var shapeFill by mutableStateOf(false)
+    /** Vertices of the shape being drawn (doc coords); curve uses [start, end, control]. */
+    var shapePoints by mutableStateOf<List<PointF>>(emptyList()); private set
+    /** True while a curve waits for its bend drag or a polygon is still collecting points. */
+    var shapePending by mutableStateOf(false); private set
     var fillMode by mutableStateOf(FillMode.Flood)
     var fillTolerance by mutableFloatStateOf(24f)
     var fillAllLayers by mutableStateOf(true)
@@ -204,6 +212,7 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveNow() {
         val d = doc ?: return; val id = projectId ?: return
+        if (shapePending) finishShape()
         if (strokes.isActive) return
         val job = store.prepareSave(d, id, dirty.mapValues { it.value.toSet() }, emptySet(), compositor.renderPreview(512))
         dirty.clear()
@@ -230,7 +239,11 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun undo() { if (floating != null) { cancelTransform(); return }; if (history.undo()) { revision++; invalidateView() } }
+    fun undo() {
+        if (floating != null) { cancelTransform(); return }
+        if (shapePending) { if (drawMode == DrawMode.Polygon && shapePoints.size > 1) { shapePoints = shapePoints.dropLast(1); renderShape(null) } else cancelShape(); return }
+        if (history.undo()) { revision++; invalidateView() }
+    }
     fun redo() { if (history.redo()) { revision++; invalidateView() } }
     fun undoTo(n: Int) { history.undoTo(n); revision++; invalidateView() }
 
@@ -357,6 +370,104 @@ class StudioViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun strokeCancel() { strokes.cancel(); strokeStart = null; invalidateView() }
     val strokeActive get() = ::strokes.isInitialized && strokes.isActive
+
+    // ---------------- Shapes ----------------
+
+    fun selectDrawMode(m: DrawMode) { if (shapePending) finishShape(); drawMode = m }
+
+    private fun shapeOutline(points: List<PointF>, live: PointF?): Pair<List<FloatArray>, Boolean> {
+        val p = points + listOfNotNull(live)
+        fun f(q: PointF) = floatArrayOf(q.x, q.y)
+        return when (drawMode) {
+            DrawMode.Line -> p.take(2).map(::f) to false
+            DrawMode.Curve -> {
+                if (p.size < 3) p.take(2).map(::f) to false
+                else {
+                    val (a, b, c) = Triple(p[0], p[1], p[2])
+                    // Control point chosen so the curve passes through where the user dragged.
+                    val cx = 2 * c.x - (a.x + b.x) / 2; val cy = 2 * c.y - (a.y + b.y) / 2
+                    (0..48).map { i -> val t = i / 48f; val u = 1 - t
+                        floatArrayOf(u * u * a.x + 2 * u * t * cx + t * t * b.x, u * u * a.y + 2 * u * t * cy + t * t * b.y) } to false
+                }
+            }
+            DrawMode.Polygon -> p.map(::f) to false
+            DrawMode.Rect -> if (p.size < 2) emptyList<FloatArray>() to true else {
+                val a = p[0]; val b = p[1]; listOf(floatArrayOf(a.x, a.y), floatArrayOf(b.x, a.y), floatArrayOf(b.x, b.y), floatArrayOf(a.x, b.y)) to true }
+            DrawMode.Ellipse -> if (p.size < 2) emptyList<FloatArray>() to true else {
+                val a = p[0]; val b = p[1]; val cx = (a.x + b.x) / 2; val cy = (a.y + b.y) / 2; val rx = abs(b.x - a.x) / 2; val ry = abs(b.y - a.y) / 2
+                (0 until 96).map { i -> val t = 2 * Math.PI * i / 96; floatArrayOf(cx + (cos(t) * rx).toFloat(), cy + (sin(t) * ry).toFloat()) } to true }
+            DrawMode.Freehand -> emptyList<FloatArray>() to false
+        }
+    }
+
+    private fun renderShape(live: PointF?, closedPolygon: Boolean = false) {
+        val (pts, closed) = shapeOutline(shapePoints, live)
+        val fillable = drawMode in listOf(DrawMode.Polygon, DrawMode.Rect, DrawMode.Ellipse)
+        strokes.renderPath(pts, closed || closedPolygon, shapeFill && fillable && (closed || closedPolygon))
+        invalidateView()
+    }
+
+    private fun ensureShapeStarted(): Boolean {
+        if (strokes.isActive) return true
+        val d = doc ?: return false; val l = d.active
+        if (l.locked) { toast = "“${l.name}” is locked"; return false }
+        if (!l.visible) { toast = "“${l.name}” is hidden — show it to draw"; return false }
+        strokes.beginShape(l, if (tool == Tool.Eraser) toolBrush[Tool.Eraser]!! else toolBrush[Tool.Brush]!!, color, symmetry)
+        return true
+    }
+
+    /** Touch down in a shape mode. Returns the vertex/handle index being dragged, if any. */
+    fun shapeDown(x: Float, y: Float) {
+        if (!ensureShapeStarted()) return
+        val p = PointF(x, y)
+        when (drawMode) {
+            DrawMode.Curve -> if (shapePending && shapePoints.size >= 2) { shapePoints = shapePoints.take(2) + p; renderShape(null); return }
+            DrawMode.Polygon -> { renderShape(p); return }
+            else -> Unit
+        }
+        shapePoints = listOf(p); shapePending = true; renderShape(p)
+    }
+
+    fun shapeMove(x: Float, y: Float) {
+        if (!strokes.isActive) return
+        val p = PointF(x, y)
+        when (drawMode) {
+            DrawMode.Curve -> if (shapePoints.size >= 2) { shapePoints = shapePoints.take(2) + p; renderShape(null) } else renderShape(p)
+            else -> renderShape(p)
+        }
+    }
+
+    fun shapeUp(x: Float, y: Float, closeRadius: Float) {
+        if (!strokes.isActive) return
+        val p = PointF(x, y)
+        when (drawMode) {
+            DrawMode.Line, DrawMode.Rect, DrawMode.Ellipse -> { shapePoints = shapePoints.take(1) + p; renderShape(null); finishShape() }
+            DrawMode.Curve -> if (shapePoints.size == 1) { shapePoints = shapePoints + p; renderShape(null) } else finishShape()
+            DrawMode.Polygon -> {
+                val first = shapePoints.firstOrNull()
+                if (first != null && shapePoints.size >= 3 && hypot(first.x - x, first.y - y) < closeRadius) { renderShape(null, closedPolygon = true); commitShape() }
+                else { shapePoints = shapePoints + p; renderShape(null) }
+            }
+            DrawMode.Freehand -> Unit
+        }
+    }
+
+    /** Commit whatever is pending (curve without a bend becomes a straight line; polygon stays open). */
+    fun finishShape() {
+        if (!shapePending && !strokes.isActive) return
+        if (drawMode == DrawMode.Polygon && shapePoints.size >= 3 && shapeFill) renderShape(null, closedPolygon = true)
+        commitShape()
+    }
+
+    fun closePolygon() { if (drawMode == DrawMode.Polygon && shapePoints.size >= 3) { renderShape(null, closedPolygon = true); commitShape() } }
+
+    private fun commitShape() {
+        val e = strokes.end()
+        shapePoints = emptyList(); shapePending = false
+        if (e != null) { rememberColor(color); commit(e) } else invalidateView()
+    }
+
+    fun cancelShape() { strokes.cancel(); shapePoints = emptyList(); shapePending = false; invalidateView() }
 
     fun eyedrop(x: Float, y: Float, remember: Boolean = false): Int {
         val c = compositor.pixelAt(x.toInt(), y.toInt())

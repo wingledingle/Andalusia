@@ -54,7 +54,7 @@ class CanvasView(context: Context, private val vm: StudioViewModel, private val 
     private val handler = Handler(Looper.getMainLooper())
     private val density = resources.displayMetrics.density
 
-    private enum class Mode { None, Draw, Gesture, Eyedrop, Lasso, Shape, Wand, Fill, Gradient, TransformMove, TransformCorner, TransformRotate, GuideDrag, Pan }
+    private enum class Mode { None, Draw, ShapeDraw, Gesture, Eyedrop, Lasso, Shape, Wand, Fill, Gradient, TransformMove, TransformCorner, TransformRotate, GuideDrag, Pan }
     private var mode = Mode.None
     private var maxPointers = 0
     private var downTime = 0L
@@ -159,6 +159,14 @@ class CanvasView(context: Context, private val vm: StudioViewModel, private val 
         if (mode == Mode.Shape) dragRect()?.let { r -> marching(canvas, Path().apply { if (vm.selectShape == SelectShape.Ellipse) addOval(r, Path.Direction.CW) else addRect(r, Path.Direction.CW) }) }
         if (mode == Mode.Gradient) { val a = dragStart; val b = dragEnd; if (a != null && b != null) { val va = toView(a.x, a.y); val vb = toView(b.x, b.y); overlay.color = Color.WHITE; canvas.drawLine(va.x, va.y, vb.x, vb.y, overlay); canvas.drawCircle(va.x, va.y, 8 * density, overlay); canvas.drawCircle(vb.x, vb.y, 8 * density, overlay) } }
         if (vm.floating != null) drawTransformBox(canvas)
+        if (vm.shapePending && vm.shapePoints.isNotEmpty()) {
+            val hp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+            vm.shapePoints.forEachIndexed { i, q ->
+                val v = toView(q.x, q.y)
+                canvas.drawCircle(v.x, v.y, (if (i == 0 && vm.drawMode == DrawMode.Polygon) 10 else 7) * density, hp)
+                overlay.color = 0xFF1F3FD1.toInt(); canvas.drawCircle(v.x, v.y, (if (i == 0 && vm.drawMode == DrawMode.Polygon) 10 else 7) * density, overlay)
+            }
+        }
         predicted?.let { p -> if (mode == Mode.Draw && p.size == 4) {
             val pp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = vm.color; strokeWidth = max(1f, vm.brush.size * 0.6f * s); strokeCap = Paint.Cap.ROUND; alpha = 140 }
             canvas.drawLine(p[0], p[1], p[2], p[3], pp)
@@ -312,6 +320,7 @@ class CanvasView(context: Context, private val vm: StudioViewModel, private val 
                 if (mode == Mode.TransformMove || mode == Mode.TransformCorner || mode == Mode.TransformRotate) { mode = Mode.Gesture; beginGesture(e); return true }
                 if (mode != Mode.Gesture) {
                     if (mode == Mode.Draw) vm.strokeCancel()
+                    if (mode == Mode.ShapeDraw && !vm.shapePending) vm.cancelShape()
                     handler.removeCallbacks(longPress); handler.removeCallbacks(holdCheck)
                     lassoPath.reset(); dragStart = null; dragEnd = null; loupe = null
                     mode = Mode.Gesture
@@ -328,6 +337,7 @@ class CanvasView(context: Context, private val vm: StudioViewModel, private val 
                         vm.strokeMove(point(e, 0))
                         predicted = predictor?.predict()?.let { pe -> floatArrayOf(e.x, e.y, pe.x, pe.y).also { pe.recycle() } }
                     }
+                    Mode.ShapeDraw -> { val d = toDoc(e.x, e.y); vm.shapeMove(d.x, d.y) }
                     Mode.Gesture -> gesture(e)
                     Mode.Pan -> { viewM.postTranslate(e.x - lastX, e.y - lastY); invalidate() }
                     Mode.Eyedrop -> sample(e.x, e.y)
@@ -359,12 +369,15 @@ class CanvasView(context: Context, private val vm: StudioViewModel, private val 
             if (idx >= 0) { guideIndex = idx; mode = Mode.GuideDrag; return }
         }
         when (vm.tool) {
-            Tool.Brush, Tool.Smudge, Tool.Eraser -> {
+            Tool.Brush, Tool.Eraser -> if (vm.drawMode != DrawMode.Freehand) { mode = Mode.ShapeDraw; vm.shapeDown(d.x, d.y) } else {
                 if (vm.strokeBegin(point(e, 0), eraserTip)) {
                     mode = Mode.Draw
                     if (finger) handler.postDelayed(longPress, 450)
                     handler.postDelayed(holdCheck, 600)
                 } else mode = Mode.None
+            }
+            Tool.Smudge -> {
+                if (vm.strokeBegin(point(e, 0), false)) mode = Mode.Draw else mode = Mode.None
             }
             Tool.Eyedropper -> { mode = Mode.Eyedrop; loupePrev = vm.color; sample(e.x, e.y) }
             Tool.Fill -> { if (vm.fillMode == FillMode.Flood) mode = Mode.Fill else { mode = Mode.Gradient; dragStart = d; dragEnd = d } }
@@ -393,6 +406,7 @@ class CanvasView(context: Context, private val vm: StudioViewModel, private val 
         val quick = e.eventTime - downTime < 280 && travelled < 24 * density
         when (mode) {
             Mode.Draw -> if (cancelled) vm.strokeCancel() else { if (e.historySize > 0 || e.pointerCount > 0) vm.strokeMove(point(e, 0)); vm.strokeEnd() }
+            Mode.ShapeDraw -> if (!cancelled) { val d = toDoc(e.x, e.y); vm.shapeUp(d.x, d.y, 28 * density / scale()) }
             Mode.Gesture -> if (quick && !cancelled) when {
                 maxPointers == 2 -> { vm.undo(); performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK) }
                 maxPointers == 3 -> { vm.redo(); performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK) }

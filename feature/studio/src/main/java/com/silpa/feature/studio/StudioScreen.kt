@@ -83,6 +83,13 @@ import compose.icons.tablericons.Marquee2
 import compose.icons.tablericons.Maximize
 import compose.icons.tablericons.Minimize
 import compose.icons.tablericons.Palette
+import compose.icons.tablericons.Pencil
+import compose.icons.tablericons.Minus
+import compose.icons.tablericons.VectorBeizer2
+import compose.icons.tablericons.Hexagon
+import compose.icons.tablericons.Square
+import compose.icons.tablericons.Circle
+import androidx.compose.material3.Icon
 import compose.icons.tablericons.Photo
 import compose.icons.tablericons.Wand
 import io.github.skeuocompose.SkeuoOrientation
@@ -151,11 +158,11 @@ fun StudioScreen(projectId: String, onBack: () -> Unit, vm: StudioViewModel = vi
                         if (vm.leftHanded) { SizeOpacity(vm, 200.dp); ToolRail(vm, vertical = true) } else { ToolRail(vm, vertical = true); SizeOpacity(vm, 200.dp) }
                     }
                 } else {
-                    SizeOpacity(vm, 130.dp, Modifier.align(sideAlign))
+                    SizeOpacity(vm, 104.dp, Modifier.align(sideAlign).padding(bottom = 96.dp))
                 }
 
                 Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
-                    ContextBar(vm)
+                    ContextBar(vm, compact = !wide)
                     if (doc.animation.enabled) Timeline(vm)
                     if (!wide) ToolRail(vm, vertical = false, available = this@BoxWithConstraints.maxWidth - 16.dp)
                 }
@@ -222,6 +229,7 @@ fun ToolRail(vm: StudioViewModel, vertical: Boolean, available: Dp = 1000.dp) {
                     if (vm.tool == t && t in listOf(Tool.Brush, Tool.Smudge, Tool.Eraser)) vm.panel = if (vm.panel == Panel.Brushes) Panel.None else Panel.Brushes
                     else {
                         if (vm.tool == Tool.Transform && t != Tool.Transform && vm.floating != null) vm.commitTransform()
+                        if (vm.shapePending) vm.finishShape()
                         vm.tool = t
                         if (t == Tool.Transform) vm.beginTransform()
                     }
@@ -250,8 +258,8 @@ fun sizeToSlider(s: Float) = (kotlin.math.ln(s.coerceIn(0.5f, 1000f) / 0.5f) / k
 fun sliderToSize(v: Float) = (0.5f * Math.pow(2000.0, v.toDouble())).toFloat()
 
 @Composable
-private fun ContextBar(vm: StudioViewModel) {
-    val show = vm.tool in listOf(Tool.Select, Tool.Transform, Tool.Fill)
+private fun ContextBar(vm: StudioViewModel, compact: Boolean) {
+    val show = vm.tool in listOf(Tool.Select, Tool.Transform, Tool.Fill, Tool.Brush, Tool.Eraser)
     if (!show) return
     Surface(
         shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f), shadowElevation = 8.dp,
@@ -260,6 +268,21 @@ private fun ContextBar(vm: StudioViewModel) {
         Column(Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 when (vm.tool) {
+                    Tool.Brush, Tool.Eraser -> {
+                        DrawMode.entries.forEach { m ->
+                            if (compact) FilterChip(vm.drawMode == m, { vm.selectDrawMode(m) }, { Icon(m.icon(), m.label, Modifier.size(20.dp)) })
+                            else FilterChip(vm.drawMode == m, { vm.selectDrawMode(m) }, { Text(m.label) }, leadingIcon = { Icon(m.icon(), null, Modifier.size(16.dp)) })
+                        }
+                        if (vm.drawMode in listOf(DrawMode.Polygon, DrawMode.Rect, DrawMode.Ellipse)) {
+                            Divider(); Text("Fill", style = MaterialTheme.typography.labelLarge); Switch(vm.shapeFill, { vm.shapeFill = it })
+                        }
+                        if (vm.shapePending) {
+                            Divider()
+                            if (vm.drawMode == DrawMode.Polygon) TextButton(vm::closePolygon, enabled = vm.shapePoints.size >= 3) { Text("Close") }
+                            TextButton(vm::cancelShape) { Text("Cancel") }
+                            TextButton(vm::finishShape) { Text("Done") }
+                        }
+                    }
                     Tool.Select -> {
                         SelectShape.entries.forEach { s -> FilterChip(vm.selectShape == s, { vm.selectShape = s }, { Text(s.label) }) }
                         Divider()
@@ -292,6 +315,16 @@ private fun ContextBar(vm: StudioViewModel) {
                     else -> Unit
                 }
             }
+            if ((vm.tool == Tool.Brush || vm.tool == Tool.Eraser) && vm.drawMode != DrawMode.Freehand) {
+                Text(vm.drawMode.label + " · " + when (vm.drawMode) {
+                    DrawMode.Line -> "Drag to draw a straight line"
+                    DrawMode.Curve -> if (vm.shapePending) "Now drag to bend it — release to finish" else "Drag to draw a line, then drag again to bend it"
+                    DrawMode.Polygon -> if (vm.shapePending) "Tap to add corners · tap the first corner to close" else "Tap to place corners"
+                    DrawMode.Rect -> "Drag to draw a rectangle"
+                    DrawMode.Ellipse -> "Drag to draw an ellipse"
+                    else -> ""
+                }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp))
+            }
             if ((vm.tool == Tool.Fill && vm.fillMode == FillMode.Flood) || (vm.tool == Tool.Select && vm.selectShape == SelectShape.Wand)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Tolerance ${vm.fillTolerance.roundToInt()}", style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(110.dp))
@@ -300,6 +333,15 @@ private fun ContextBar(vm: StudioViewModel) {
             }
         }
     }
+}
+
+fun DrawMode.icon() = when (this) {
+    DrawMode.Freehand -> TablerIcons.Pencil
+    DrawMode.Line -> TablerIcons.Minus
+    DrawMode.Curve -> TablerIcons.VectorBeizer2
+    DrawMode.Polygon -> TablerIcons.Hexagon
+    DrawMode.Rect -> TablerIcons.Square
+    DrawMode.Ellipse -> TablerIcons.Circle
 }
 
 @Composable
