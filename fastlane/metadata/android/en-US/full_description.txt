@@ -1,0 +1,41 @@
+Silpa is a professional drawing and painting studio for Android phones, tablets and Chromebooks — with a reference library that sorts itself.
+
+DRAW LIKE A PRO
+• 67 hand-tuned brushes in 15 sets: pencils, inks, G-pen, paints, watercolor, airbrush, markers, textures, effects, comic tones and more
+• Pressure, tilt and speed dynamics, paper grain, wet color mixing, smudge and glow
+• Brush Studio: tune every setting, save your own brushes, import Photoshop .abr brushes
+• StreamLine smoothing, and QuickShape — hold at the end of a stroke to snap to a perfect line, ellipse or rectangle
+
+LAYERS & TOOLS
+• Layers with 17 blend modes, clipping masks, alpha lock, reference layers and merging
+• Selections: lasso, rectangle, ellipse and magic wand
+• Transform with uniform, free and distort modes, flip and rotate
+• Bucket fill and gradients, 16 adjustments and filters, and text
+• Huge canvases up to 16,384 px — empty areas use no memory
+
+GUIDES & SYMMETRY
+• Grid, isometric and 1-, 2- and 3-point perspective with drawing assist
+• Symmetry and kaleidoscope with up to 32 mirror planes
+
+COMICS & ANIMATION
+• Panel layouts, speed lines, focus lines, screentone and speech balloons
+• Frame-by-frame animation with onion skins; export GIF or MP4
+• Automatic timelapse recording of every artwork
+
+IMAGE BANK THAT ORGANIZES ITSELF
+• Share any image to Silpa and it's filed automatically: faces, eyes, noses, mouths, characters, houses, landscapes, animals and more
+• Faces are cut into eyes, noses and mouths for you
+• Search by tag, color or style, find similar images, and save smart folders
+• Move an image and Silpa learns from it. Sorting happens on your device — your images never leave it
+• Use references as layers, floating reference windows or stamp brushes
+
+YOUR WORK, YOUR FILES
+• Autosaves after every stroke, with unlimited undo
+• Import and export layered Photoshop PSD files, plus PNG, JPEG, WebP, PDF, GIF, MP4 and .silpa projects
+
+MADE FOR YOUR HANDS
+• Two-finger tap to undo, three to redo, four for full screen; pinch to zoom and rotate; touch and hold to pick a color
+• Adaptive layouts for phones, tablets and foldables, plus a left-handed mode
+
+FREE, WITH UNOBTRUSIVE ADS
+Silpa is free. A single small banner appears on the home and Image Bank screens only — never while you draw. A one-time Silpa Pro purchase removes ads for good.

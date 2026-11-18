@@ -119,20 +119,20 @@ fun SkeuoToolKey(
 
 /** Machined graphite rail that holds tool keys. */
 @Composable
-fun SkeuoRail(modifier: Modifier = Modifier, vertical: Boolean = false, content: @Composable () -> Unit) {
+fun SkeuoRail(modifier: Modifier = Modifier, vertical: Boolean = false, gap: Dp = 6.dp, padding: Dp = 6.dp, content: @Composable () -> Unit) {
     SkeuoSurface(
         modifier = modifier,
         palette = SilpaSkeuo.Carbon,
         style = SkeuoSurfaceStyle(
             shape = RoundedCornerShape(22.dp),
-            contentPadding = PaddingValues(6.dp),
+            contentPadding = PaddingValues(padding),
             raisedElevation = 10.dp,
             textureKind = SkeuoTextureKind.None,
             bevelKind = SkeuoBevelKind.Subtle,
         ),
     ) {
-        if (vertical) Column(verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) { content() }
-        else Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) { content() }
+        if (vertical) Column(verticalArrangement = Arrangement.spacedBy(gap), horizontalAlignment = Alignment.CenterHorizontally) { content() }
+        else Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.CenterVertically) { content() }
     }
 }
 

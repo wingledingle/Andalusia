@@ -157,7 +157,7 @@ fun StudioScreen(projectId: String, onBack: () -> Unit, vm: StudioViewModel = vi
                 Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                     ContextBar(vm)
                     if (doc.animation.enabled) Timeline(vm)
-                    if (!wide) ToolRail(vm, vertical = false)
+                    if (!wide) ToolRail(vm, vertical = false, available = this@BoxWithConstraints.maxWidth - 16.dp)
                 }
 
                 val panelMod = if (wide) Modifier.align(if (vm.leftHanded) Alignment.TopStart else Alignment.TopEnd).padding(top = 64.dp).width(380.dp).fillMaxHeight(0.86f)
@@ -209,11 +209,15 @@ private fun TopRail(vm: StudioViewModel, wide: Boolean, onBack: () -> Unit, modi
 }
 
 @Composable
-fun ToolRail(vm: StudioViewModel, vertical: Boolean) {
-    SkeuoRail(vertical = vertical) {
+fun ToolRail(vm: StudioViewModel, vertical: Boolean, available: Dp = 1000.dp) {
+    // Seven keys must fit even a 320dp phone: shrink spacing first, then keys (never below 40dp).
+    val n = Tool.entries.size
+    val gap = if (available < 400.dp) 3.dp else 6.dp
+    val key = ((available - 12.dp - gap * (n - 1)) / n).coerceIn(40.dp, 48.dp)
+    SkeuoRail(vertical = vertical, gap = gap, padding = if (available < 400.dp) 4.dp else 6.dp) {
         Tool.entries.forEach { t ->
             SkeuoToolKey(
-                icon = t.icon(), label = t.label, selected = vm.tool == t, caption = t.short,
+                icon = t.icon(), label = t.label, selected = vm.tool == t, caption = t.short, size = if (vertical) 48.dp else key,
                 onClick = {
                     if (vm.tool == t && t in listOf(Tool.Brush, Tool.Smudge, Tool.Eraser)) vm.panel = if (vm.panel == Panel.Brushes) Panel.None else Panel.Brushes
                     else {
