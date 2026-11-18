@@ -5,6 +5,8 @@
 
     <application
         android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -12,10 +14,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Silpa.Splash">
 
-        <!-- Google's sample AdMob app ID. Replace with your own before release. -->
+        <!-- Set admobAppId in keystore.properties (defaults to Google's test ID). -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="${admobAppId}" />
 
         <activity
             android:name=".MainActivity"

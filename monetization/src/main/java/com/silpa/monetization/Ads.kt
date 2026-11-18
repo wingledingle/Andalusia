@@ -27,10 +27,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  *  - nothing at all for Pro users;
  *  - requested only after the user's privacy choice (Google UMP consent).
  *
- * Replace the test IDs below with your own AdMob IDs before release (and in AndroidManifest.xml).
+ * AdMob IDs come from keystore.properties via the app module (see docs/PUBLISHING.md).
  */
 object Ads {
-    const val BANNER_UNIT_ID = "ca-app-pub-3940256099942544/9214589741" // Google's test adaptive banner
+    /** Set by the app at startup from keystore.properties (defaults to Google's test banner). */
+    var bannerUnitId = "ca-app-pub-3940256099942544/9214589741"
     private val started = AtomicBoolean(false)
     private val consentChecked = AtomicBoolean(false)
 
@@ -62,7 +63,7 @@ fun BannerAd(modifier: Modifier = Modifier) {
         AndroidView(factory = { c ->
             AdView(c).apply {
                 setAdSize(AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(c, w))
-                adUnitId = Ads.BANNER_UNIT_ID
+                adUnitId = Ads.bannerUnitId
                 loadAd(AdRequest.Builder().build())
             }
         }, onRelease = { it.destroy() })

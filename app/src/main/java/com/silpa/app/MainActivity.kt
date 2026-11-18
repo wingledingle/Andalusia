@@ -22,6 +22,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         ProManager.get(this)
+        Ads.bannerUnitId = BuildConfig.ADMOB_BANNER_ID
         Ads.init(this)
         handle(intent)
         setContent { SilpaTheme { SilpaApp(incoming.value) { incoming.value = emptyList() } } }
